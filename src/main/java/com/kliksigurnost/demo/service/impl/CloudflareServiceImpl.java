@@ -10,6 +10,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+
 @Service
 public class CloudflareServiceImpl implements CloudflareService {
 
@@ -22,10 +27,11 @@ public class CloudflareServiceImpl implements CloudflareService {
     @Value("${cloudflare.authorization.token}")
     private String authorizationToken;
 
+    private String baseUrl = "https://api.cloudflare.com/client/v4/accounts/";
+
     @Override
     public String getPolicies() {
-        String url = "https://api.cloudflare.com/client/v4/accounts/" +
-                        accountId + "/gateway/rules";
+        String url = baseUrl + accountId + "/gateway/rules";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", authorizationToken);
@@ -41,5 +47,33 @@ public class CloudflareServiceImpl implements CloudflareService {
             return null;
         }
     }
-}
 
+    @Override
+    public String createPolicy(String action, String email) {
+        String url = baseUrl + accountId + "/gateway/rules";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", authorizationToken);
+        headers.set("Content-Type", "application/json");
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("action", action);
+        requestBody.put("name", email);
+        requestBody.put("enabled", true);
+        requestBody.put("identity", "identity.email == \"" + email + "\"");
+
+        List<String> filters = new ArrayList<>();
+        filters.add("dns");
+        requestBody.put("filters", filters);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            return response.getBody();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
