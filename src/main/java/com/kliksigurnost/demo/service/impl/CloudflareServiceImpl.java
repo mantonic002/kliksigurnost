@@ -3,10 +3,7 @@ package com.kliksigurnost.demo.service.impl;
 import com.kliksigurnost.demo.service.CloudflareService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -50,7 +47,7 @@ public class CloudflareServiceImpl implements CloudflareService {
 
     @Override
     public String createPolicy(String action, String email) {
-        String url = baseUrl + accountId + "/gateway/rules";
+        String url = baseUrl + accountId + "/gateway/rules/fdd21e22-1a0f-4281-8189-3ec664e256f5";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", authorizationToken);
