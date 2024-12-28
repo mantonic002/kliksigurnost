@@ -24,7 +24,7 @@ public class CloudflareServiceImpl implements CloudflareService {
     @Value("${cloudflare.authorization.token}")
     private String authorizationToken;
 
-    private String baseUrl = "https://api.cloudflare.com/client/v4/accounts/";
+    private final String baseUrl = "https://api.cloudflare.com/client/v4/accounts/";
 
     @Override
     public String getPolicies() {
