@@ -13,6 +13,8 @@ public class CloudflareController {
         this.cloudflareService = cloudflareService;
     }
 
+
+
     @GetMapping("/getPolicies")
     public String getPolicies() {
         return cloudflareService.getPolicies();
@@ -22,5 +24,16 @@ public class CloudflareController {
     public String createPolicy(@RequestParam String email)
     {
         return cloudflareService.createPolicy("block", email);
+    }
+
+    @GetMapping("/getApplications")
+    public String getApplications() {
+        return cloudflareService.getApplications();
+    }
+
+    @PostMapping("/createEnrollmentPolicy")
+    public String createEnrollmentPolicy(@RequestParam String email)
+    {
+        return cloudflareService.createEnrollmentPolicy("f94963bb-a350-40eb-9c8c-d88525ed59cf", email);
     }
 }

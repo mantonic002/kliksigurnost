@@ -32,6 +32,9 @@ public class User implements UserDetails {
 
     private String password;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    private CloudflareAccount cloudflareAccount;
+
     @Enumerated(EnumType.STRING)
     private Role role;
 
