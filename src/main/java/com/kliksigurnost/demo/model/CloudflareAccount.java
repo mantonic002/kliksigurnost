@@ -17,4 +17,5 @@ public class CloudflareAccount {
     private String email;
     private String authorizationToken;
     private String enrollmentApplicationId;
+    private Integer userNum;
 }

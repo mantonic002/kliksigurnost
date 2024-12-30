@@ -1,5 +1,6 @@
 package com.kliksigurnost.demo.controller;
 
+import com.kliksigurnost.demo.model.CloudflareAccount;
 import com.kliksigurnost.demo.service.CloudflareService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +14,10 @@ public class CloudflareController {
         this.cloudflareService = cloudflareService;
     }
 
-
+    @PostMapping("/setupAccount")
+    public String setupAccount(@RequestBody CloudflareAccount account) {
+        return cloudflareService.createAccount(account);
+    }
 
     @GetMapping("/getPolicies")
     public String getPolicies() {
@@ -28,7 +32,7 @@ public class CloudflareController {
 
     @GetMapping("/getApplications")
     public String getApplications() {
-        return cloudflareService.getApplications();
+        return cloudflareService.getApplications().getBody();
     }
 
     @PostMapping("/createEnrollmentPolicy")

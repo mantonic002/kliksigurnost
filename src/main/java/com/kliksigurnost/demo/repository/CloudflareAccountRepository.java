@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface CloudflareAccountRepository  extends JpaRepository<CloudflareAccount, String> {
 
     Optional<CloudflareAccount> findByAccountId(String accountId);
+    Optional<CloudflareAccount> findFirstByUserNumIsLessThan(Integer userNum);
 }

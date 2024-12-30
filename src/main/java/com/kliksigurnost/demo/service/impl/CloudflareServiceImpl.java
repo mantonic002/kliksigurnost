@@ -1,8 +1,12 @@
 package com.kliksigurnost.demo.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kliksigurnost.demo.model.CloudflareAccount;
+import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.service.CloudflareService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -15,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class CloudflareServiceImpl implements CloudflareService {
 
     @Autowired
@@ -27,6 +32,25 @@ public class CloudflareServiceImpl implements CloudflareService {
     private String authorizationToken;
 
     private final String baseUrl = "https://api.cloudflare.com/client/v4/accounts/";
+
+    private final CloudflareAccountRepository repository;
+
+    @Override
+    public String createAccount(CloudflareAccount account) {
+        var cloudflareAccount = repository.findByAccountId(account.getAccountId());
+        if(cloudflareAccount.isEmpty())
+        {
+            String appId = getWarpApplicationId();
+            if (appId == null)
+            {
+                appId = createEnrollmentApplication(account.getAccountId());
+            }
+            account.setEnrollmentApplicationId(appId);
+            account.setUserNum(0);
+            repository.save(account);
+        }
+        return account.getAccountId();
+    }
 
     @Override
     public String getPolicies() {
@@ -105,7 +129,7 @@ public class CloudflareServiceImpl implements CloudflareService {
     }
 
     @Override
-    public String getApplications() {
+    public ResponseEntity<String> getApplications() {
         String url = baseUrl + accountId + "/access/apps";
 
         HttpHeaders headers = new HttpHeaders();
@@ -115,12 +139,36 @@ public class CloudflareServiceImpl implements CloudflareService {
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-            return response.getBody();
+            return restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public String getWarpApplicationId() {
+        try {
+            ResponseEntity<String> response = getApplications();
+
+            if (response.getStatusCode() == HttpStatus.OK) {
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode responseBody = objectMapper.readTree(response.getBody());
+
+                // Iterate through the applications and check if a 'warp' type application exists
+                for (JsonNode app : responseBody.path("result")) {
+                    if ("warp".equals(app.path("type").asText())) {
+                        // Return the ID if a 'warp' application is found
+                        return app.path("id").asText();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
+        // Return null if no 'warp' application is found
+        return null;
     }
 
     @Override
