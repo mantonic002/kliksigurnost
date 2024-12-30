@@ -20,17 +20,26 @@ import org.springframework.stereotype.Service;
 public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final UserRepository repository;
+
+    // security fields
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+
+    // cloudflare connection fields
     private final CloudflareAccountRepository cloudflareAccountRepository;
 
     @Override
     public AuthenticationResponse register(RegisterRequest request) {
+        // find cloudflare account with free seat
         var cloudflareAcc = cloudflareAccountRepository.findFirstByUserNumIsLessThan(50);
         if (cloudflareAcc.isEmpty()) {
             return null;
         }
+
+        // update enrollment policy to contain registered user
+        // TODO
+
         var user = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())

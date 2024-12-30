@@ -1,18 +1,17 @@
 package com.kliksigurnost.demo.controller;
 
 import com.kliksigurnost.demo.model.CloudflareAccount;
+import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.service.CloudflareService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequiredArgsConstructor
 public class CloudflareController {
     private final CloudflareService cloudflareService;
-
-    @Autowired
-    public CloudflareController(CloudflareService cloudflareService) {
-        this.cloudflareService = cloudflareService;
-    }
+    private final CloudflareAccountRepository repository;
 
     @PostMapping("/setupAccount")
     public String setupAccount(@RequestBody CloudflareAccount account) {
@@ -20,24 +19,32 @@ public class CloudflareController {
     }
 
     @GetMapping("/getPolicies")
-    public String getPolicies() {
-        return cloudflareService.getPolicies();
+    public String getPolicies(@RequestParam String id) {
+        var acc = repository.findByAccountId(id);
+        if (acc.isEmpty()) {
+            return "Account not found";
+        }
+        return cloudflareService.getPolicies(acc.get());
     }
 
-    @PostMapping("/createPolicy")
-    public String createPolicy(@RequestParam String email)
-    {
-        return cloudflareService.createPolicy("block", email);
-    }
+//    @PostMapping("/createPolicy")
+//    public String createPolicy(@RequestParam String email)
+//    {
+//        return cloudflareService.createPolicy("block", email);
+//    }
 
     @GetMapping("/getApplications")
-    public String getApplications() {
-        return cloudflareService.getApplications().getBody();
+    public String getApplications(@RequestParam String id) {
+        var acc = repository.findByAccountId(id);
+        if (acc.isEmpty()) {
+            return "Account not found";
+        }
+        return cloudflareService.getApplications(acc.get()).getBody();
     }
-
-    @PostMapping("/createEnrollmentPolicy")
-    public String createEnrollmentPolicy(@RequestParam String email)
-    {
-        return cloudflareService.createEnrollmentPolicy("f94963bb-a350-40eb-9c8c-d88525ed59cf", email);
-    }
+//
+//    @PostMapping("/createEnrollmentPolicy")
+//    public String createEnrollmentPolicy(@RequestParam String email)
+//    {
+//        return cloudflareService.createEnrollmentPolicy("f94963bb-a350-40eb-9c8c-d88525ed59cf", "test@gmail.com");
+//    }
 }
