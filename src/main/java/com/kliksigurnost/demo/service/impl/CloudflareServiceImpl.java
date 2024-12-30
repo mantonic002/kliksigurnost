@@ -1,6 +1,5 @@
 package com.kliksigurnost.demo.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kliksigurnost.demo.model.CloudflareAccount;
@@ -8,7 +7,6 @@ import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.service.CloudflareService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -25,12 +23,6 @@ public class CloudflareServiceImpl implements CloudflareService {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Value("${cloudflare.account.id}")
-    private String accountId;
-
-    @Value("${cloudflare.authorization.token}")
-    private String authorizationToken;
-
     private final String baseUrl = "https://api.cloudflare.com/client/v4/accounts/";
 
     private final CloudflareAccountRepository repository;
@@ -40,12 +32,20 @@ public class CloudflareServiceImpl implements CloudflareService {
         var cloudflareAccount = repository.findByAccountId(account.getAccountId());
         if(cloudflareAccount.isEmpty())
         {
-            String appId = getWarpApplicationId();
+            String appId = getWarpApplicationId(account);
             if (appId == null)
             {
-                appId = createEnrollmentApplication(account.getAccountId());
+                appId = createEnrollmentApplication(account);
             }
             account.setEnrollmentApplicationId(appId);
+
+            String policyId = getEnrollmentPolicyId(account);
+            if (policyId == null)
+            {
+                policyId = createEnrollmentPolicy(account);
+            }
+
+            account.setEnrollmentPolicyId(policyId);
             account.setUserNum(0);
             repository.save(account);
         }
@@ -53,11 +53,11 @@ public class CloudflareServiceImpl implements CloudflareService {
     }
 
     @Override
-    public String getPolicies() {
-        String url = baseUrl + accountId + "/gateway/rules";
+    public String getPolicies(CloudflareAccount account) {
+        String url = baseUrl + account.getAccountId() + "/gateway/rules";
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", authorizationToken);
+        headers.set("Authorization", account.getAuthorizationToken());
         headers.set("Content-Type", "application/json");
 
         HttpEntity<String> entity = new HttpEntity<>(headers);
@@ -72,11 +72,11 @@ public class CloudflareServiceImpl implements CloudflareService {
     }
 
     @Override
-    public String createPolicy(String action, String email) {
-        String url = baseUrl + accountId + "/gateway/rules/fdd21e22-1a0f-4281-8189-3ec664e256f5";
+    public String createPolicy(CloudflareAccount account, String action, String email) {
+        String url = baseUrl + account.getAccountId() + "/gateway/rules/fdd21e22-1a0f-4281-8189-3ec664e256f5";
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", authorizationToken);
+        headers.set("Authorization", account.getAuthorizationToken());
         headers.set("Content-Type", "application/json");
 
         Map<String, Object> requestBody = new HashMap<>();
@@ -101,15 +101,15 @@ public class CloudflareServiceImpl implements CloudflareService {
     }
 
     @Override
-    public String createEnrollmentApplication(String name) {
-        String url = baseUrl + accountId + "/access/apps";
+    public String createEnrollmentApplication(CloudflareAccount account) {
+        String url = baseUrl + account.getAccountId() + "/access/apps";
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", authorizationToken);
+        headers.set("Authorization", account.getAuthorizationToken());
         headers.set("Content-Type", "application/json");
 
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("name", name);
+        requestBody.put("name", account.getEmail());
         requestBody.put("type", "warp");
         requestBody.put("session_duration", "24h");
 
@@ -129,11 +129,11 @@ public class CloudflareServiceImpl implements CloudflareService {
     }
 
     @Override
-    public ResponseEntity<String> getApplications() {
-        String url = baseUrl + accountId + "/access/apps";
+    public ResponseEntity<String> getApplications(CloudflareAccount account) {
+        String url = baseUrl + account.getAccountId() + "/access/apps";
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", authorizationToken);
+        headers.set("Authorization", account.getAuthorizationToken());
         headers.set("Content-Type", "application/json");
 
         HttpEntity<String> entity = new HttpEntity<>(headers);
@@ -146,9 +146,44 @@ public class CloudflareServiceImpl implements CloudflareService {
         }
     }
 
-    public String getWarpApplicationId() {
+    @Override
+    public String createEnrollmentPolicy(CloudflareAccount account) {
+        String url = baseUrl + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", account.getAuthorizationToken());
+        headers.set("Content-Type", "application/json");
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("name", "Allow");
+        requestBody.put("decision", "allow");
+
+        List<Map<String, Object>> includeList = new ArrayList<>();
+        Map<String, Object> emailFilter = new HashMap<>();
+        Map<String, Object> emailObj = new HashMap<>();
+        emailObj.put("email", account.getEmail());
+        emailFilter.put("email", emailObj);
+        includeList.add(emailFilter);
+        requestBody.put("include", includeList);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
         try {
-            ResponseEntity<String> response = getApplications();
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode responseBody = objectMapper.readTree(response.getBody());
+
+            return responseBody.path("result").path("id").asText();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public String getWarpApplicationId(CloudflareAccount account) {
+        try {
+            ResponseEntity<String> response = getApplications(account);
 
             if (response.getStatusCode() == HttpStatus.OK) {
                 ObjectMapper objectMapper = new ObjectMapper();
@@ -171,35 +206,30 @@ public class CloudflareServiceImpl implements CloudflareService {
         return null;
     }
 
-    @Override
-    public String createEnrollmentPolicy(String appId, String email) {
-        String url = baseUrl + accountId + "/access/apps/" + appId + "/policies";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", authorizationToken);
-        headers.set("Content-Type", "application/json");
-
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("name", "Allow");
-        requestBody.put("decision", "allow");
-
-        List<Map<String, Object>> includeList = new ArrayList<>();
-        Map<String, Object> emailFilter = new HashMap<>();
-        Map<String, Object> emailObj = new HashMap<>();
-        emailObj.put("email", email);
-        emailFilter.put("email", emailObj);
-        includeList.add(emailFilter);
-        requestBody.put("include", includeList);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
+    public String getEnrollmentPolicyId(CloudflareAccount account) {
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-            return response.getBody();
+            ResponseEntity<String> response = getApplications(account);
+
+            if (response.getStatusCode() == HttpStatus.OK) {
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode responseBody = objectMapper.readTree(response.getBody());
+
+                for (JsonNode app : responseBody.path("result")) {
+                    if ("warp".equals(app.path("type").asText())) {
+                        for (JsonNode policy : app.path("policies")) {
+                            if (policy.path("precedence").asInt() == 1) {
+                                return policy.path("id").asText();
+                            }
+                        }
+                    }
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
+        return null;
     }
+
 
 }

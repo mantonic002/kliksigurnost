@@ -5,9 +5,9 @@ import org.springframework.http.ResponseEntity;
 
 public interface CloudflareService {
     String createAccount(CloudflareAccount account);
-    String getPolicies();
-    String createPolicy(String action, String email);
-    public String createEnrollmentApplication(String name);
-    ResponseEntity<String> getApplications();
-    public String createEnrollmentPolicy(String appId, String email);
+    String getPolicies(CloudflareAccount account);
+    String createPolicy(CloudflareAccount account, String action, String email);
+    public String createEnrollmentApplication(CloudflareAccount account);
+    ResponseEntity<String> getApplications(CloudflareAccount account);
+    public String createEnrollmentPolicy(CloudflareAccount account);
 }
