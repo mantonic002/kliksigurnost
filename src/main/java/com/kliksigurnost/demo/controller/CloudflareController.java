@@ -1,6 +1,7 @@
 package com.kliksigurnost.demo.controller;
 
 import com.kliksigurnost.demo.model.CloudflareAccount;
+import com.kliksigurnost.demo.model.CloudflarePolicyRequest;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.service.CloudflareService;
 import lombok.RequiredArgsConstructor;
@@ -27,11 +28,15 @@ public class CloudflareController {
         return cloudflareService.getPolicies(acc.get());
     }
 
-//    @PostMapping("/createPolicy")
-//    public String createPolicy(@RequestParam String email)
-//    {
-//        return cloudflareService.createPolicy("block", email);
-//    }
+    @PostMapping("/createPolicy")
+    public String createPolicy(@RequestBody CloudflarePolicyRequest request)
+    {
+        var acc = repository.findFirstByUserNumIsLessThan(50);
+        if (acc.isEmpty()) {
+            return "Account not found";
+        }
+        return cloudflareService.createPolicy(acc.get(), request);
+    }
 
     @GetMapping("/getApplications")
     public String getApplications(@RequestParam String id) {

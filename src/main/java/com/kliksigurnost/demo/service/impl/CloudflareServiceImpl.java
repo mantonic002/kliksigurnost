@@ -3,6 +3,7 @@ package com.kliksigurnost.demo.service.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kliksigurnost.demo.model.CloudflareAccount;
+import com.kliksigurnost.demo.model.CloudflarePolicyRequest;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.service.CloudflareService;
 import lombok.RequiredArgsConstructor;
@@ -73,18 +74,19 @@ public class CloudflareServiceImpl implements CloudflareService {
     }
 
     @Override
-    public String createPolicy(CloudflareAccount account, String action, String email) {
-        String url = baseUrl + account.getAccountId() + "/gateway/rules/fdd21e22-1a0f-4281-8189-3ec664e256f5";
+    public String createPolicy(CloudflareAccount account, CloudflarePolicyRequest req) {
+        String url = baseUrl + account.getAccountId() + "/gateway/rules";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", account.getAuthorizationToken());
         headers.set("Content-Type", "application/json");
 
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("action", action);
-        requestBody.put("name", email);
+        requestBody.put("action", req.getAction());
+        requestBody.put("name", req.getEmail());
         requestBody.put("enabled", true);
-        requestBody.put("identity", "identity.email == \"" + email + "\"");
+        requestBody.put("identity", "identity.email == \"" + req.getEmail() + "\"");
+        requestBody.put("traffic", req.getTraffic());
 
         List<String> filters = new ArrayList<>();
         filters.add("dns");
