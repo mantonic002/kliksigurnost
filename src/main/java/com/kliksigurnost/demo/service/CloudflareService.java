@@ -10,4 +10,6 @@ public interface CloudflareService {
     public String createEnrollmentApplication(CloudflareAccount account);
     ResponseEntity<String> getApplications(CloudflareAccount account);
     public String createEnrollmentPolicy(CloudflareAccount account);
+
+    String updateEnrollmentPolicyAddEmail(String accountId, String email);
 }

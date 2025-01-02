@@ -30,6 +30,7 @@ public class CloudflareServiceImpl implements CloudflareService {
     @Override
     public String createAccount(CloudflareAccount account) {
         var cloudflareAccount = repository.findByAccountId(account.getAccountId());
+        // if acc doesnt exist create new
         if(cloudflareAccount.isEmpty())
         {
             String appId = getWarpApplicationId(account);
@@ -181,6 +182,52 @@ public class CloudflareServiceImpl implements CloudflareService {
         }
     }
 
+    @Override
+    public String updateEnrollmentPolicyAddEmail(String accountId, String email) {
+        var acc = repository.findByAccountId(accountId);
+        if (acc.isEmpty()) {
+            return null;
+        }
+        CloudflareAccount account = acc.get();
+        String url = baseUrl + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies/" + account.getEnrollmentPolicyId();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", account.getAuthorizationToken());
+        headers.set("Content-Type", "application/json");
+
+        // Create the request body to update the policy by adding a new email
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("name", "Allow");
+        requestBody.put("decision", "allow");
+
+        // Include the existing email filter and add the new one
+        List<Map<String, Object>> includeList = getEnrollmentPolicyEmails(account);
+
+        // Retrieve existing filters from the policy (if needed) or initialize as empty
+        Map<String, Object> emailFilter = new HashMap<>();
+        Map<String, Object> emailObj = new HashMap<>();
+        emailObj.put("email", email);
+        emailFilter.put("email", emailObj);
+        includeList.add(emailFilter);
+
+        // Add the new include list to the request body
+        requestBody.put("include", includeList);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            // Send the PUT request to update the policy
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, entity, String.class);
+
+            // Return the response body if the update was successful
+            return response.getBody();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
     public String getWarpApplicationId(CloudflareAccount account) {
         try {
             ResponseEntity<String> response = getApplications(account);
@@ -229,6 +276,37 @@ public class CloudflareServiceImpl implements CloudflareService {
             return null;
         }
         return null;
+    }
+
+    public List<Map<String, Object>> getEnrollmentPolicyEmails(CloudflareAccount account) {
+        String url = baseUrl + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies/" + account.getEnrollmentPolicyId();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", account.getAuthorizationToken());
+        headers.set("Content-Type", "application/json");
+
+        // Retrieve the current list of filters (if any)
+        List<Map<String, Object>> includeList = new ArrayList<>();
+
+        // Fetch the existing policy to get its current include list
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), String.class);
+            if (response.getStatusCode() == HttpStatus.OK) {
+                ObjectMapper objectMapper = new ObjectMapper();
+                JsonNode responseBody = objectMapper.readTree(response.getBody());
+
+                // Retrieve existing "include" filters from the policy
+                JsonNode existingInclude = responseBody.path("result").path("include");
+                for (JsonNode include : existingInclude) {
+                    includeList.add(objectMapper.convertValue(include, Map.class));
+                }
+                return includeList;
+            }
+            return null;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
 
