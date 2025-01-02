@@ -3,9 +3,12 @@ package com.kliksigurnost.demo.service.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kliksigurnost.demo.model.CloudflareAccount;
-import com.kliksigurnost.demo.model.CloudflarePolicyRequest;
+import com.kliksigurnost.demo.model.CloudflarePolicy;
+import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
+import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
 import com.kliksigurnost.demo.service.CloudflareService;
+import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
@@ -27,6 +30,8 @@ public class CloudflareServiceImpl implements CloudflareService {
     private final String baseUrl = "https://api.cloudflare.com/client/v4/accounts/";
 
     private final CloudflareAccountRepository repository;
+    private final CloudflarePolicyRepository policyRepository;
+    private final UserService userService;
 
     @Override
     public String createAccount(CloudflareAccount account) {
@@ -74,7 +79,13 @@ public class CloudflareServiceImpl implements CloudflareService {
     }
 
     @Override
-    public String createPolicy(CloudflareAccount account, CloudflarePolicyRequest req) {
+    public String createPolicy(CloudflarePolicy policy) {
+        User user = userService.getCurrentUser();
+        policy.setUser(user);
+
+        var account = user.getCloudflareAccount();
+        policy.setCloudflareAccId(account.getAccountId());
+
         String url = baseUrl + account.getAccountId() + "/gateway/rules";
 
         HttpHeaders headers = new HttpHeaders();
@@ -82,11 +93,11 @@ public class CloudflareServiceImpl implements CloudflareService {
         headers.set("Content-Type", "application/json");
 
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("action", req.getAction());
-        requestBody.put("name", req.getEmail());
+        requestBody.put("action", policy.getAction());
+        requestBody.put("name", policy.getUser().getEmail());
         requestBody.put("enabled", true);
-        requestBody.put("identity", "identity.email == \"" + req.getEmail() + "\"");
-        requestBody.put("traffic", req.getTraffic());
+        requestBody.put("identity", "identity.email == \"" + policy.getUser().getEmail() + "\"");
+        requestBody.put("traffic", policy.getTraffic());
 
         List<String> filters = new ArrayList<>();
         filters.add("dns");
@@ -96,11 +107,25 @@ public class CloudflareServiceImpl implements CloudflareService {
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode responseBody = objectMapper.readTree(response.getBody());
+
+            String id =  responseBody.path("result").path("id").asText();
+
+            policy.setId(id);
+            policyRepository.save(policy);
+
             return response.getBody();
         } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
+    }
+
+    @Override
+    public List<CloudflarePolicy> getPoliciesByUser() {
+        return policyRepository.findByUser(userService.getCurrentUser());
     }
 
     @Override

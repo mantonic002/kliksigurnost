@@ -1,5 +1,6 @@
 package com.kliksigurnost.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,6 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @Builder
@@ -34,6 +36,10 @@ public class User implements UserDetails {
 
     @ManyToOne(fetch = FetchType.EAGER)
     private CloudflareAccount cloudflareAccount;
+
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @JsonBackReference
+    private List<CloudflarePolicy> policies;
 
     @Enumerated(EnumType.STRING)
     private Role role;
