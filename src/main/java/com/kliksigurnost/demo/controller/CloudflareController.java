@@ -6,7 +6,12 @@ import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.service.CloudflareService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+
+import java.security.Principal;
 
 @RestController
 @RequiredArgsConstructor
@@ -35,6 +40,7 @@ public class CloudflareController {
         if (acc.isEmpty()) {
             return "Account not found";
         }
+        request.setEmail(SecurityContextHolder.getContext().getAuthentication().getName());
         return cloudflareService.createPolicy(acc.get(), request);
     }
 
@@ -46,10 +52,4 @@ public class CloudflareController {
         }
         return cloudflareService.getApplications(acc.get()).getBody();
     }
-//
-//    @PostMapping("/createEnrollmentPolicy")
-//    public String createEnrollmentPolicy(@RequestParam String email)
-//    {
-//        return cloudflareService.createEnrollmentPolicy("f94963bb-a350-40eb-9c8c-d88525ed59cf", "test@gmail.com");
-//    }
 }
