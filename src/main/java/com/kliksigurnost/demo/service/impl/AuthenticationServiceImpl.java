@@ -10,11 +10,10 @@ import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.repository.UserRepository;
 import com.kliksigurnost.demo.service.AuthenticationService;
-import com.kliksigurnost.demo.service.CloudflareService;
+import com.kliksigurnost.demo.service.CloudflareAccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -31,7 +30,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     // cloudflare connection fields
     private final CloudflareAccountRepository cloudflareAccountRepository;
-    private final CloudflareService cloudflareService;
+    private final CloudflareAccountService cloudflareService;
 
     @Override
     public AuthenticationResponse register(RegisterRequest request) {
