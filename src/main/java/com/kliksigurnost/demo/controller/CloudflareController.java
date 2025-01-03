@@ -2,13 +2,10 @@ package com.kliksigurnost.demo.controller;
 
 import com.kliksigurnost.demo.model.CloudflareAccount;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
-import com.kliksigurnost.demo.model.User;
-import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
-import com.kliksigurnost.demo.service.AuthenticationService;
+import com.kliksigurnost.demo.service.CloudflareAccountService;
 import com.kliksigurnost.demo.service.CloudflareService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,13 +14,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class CloudflareController {
     private final CloudflareService cloudflareService;
-    private final AuthenticationService authenticationService;
-    private final CloudflareAccountRepository repository;
+    private final CloudflareAccountService cloudflareAccountService;
 
-    @PostMapping("/setupAccount")
-    public String setupAccount(@RequestBody CloudflareAccount account) {
-        return cloudflareService.createAccount(account);
-    }
 
     @GetMapping("/getPolicies")
     public ResponseEntity<List<CloudflarePolicy>> getPolicies() {
@@ -31,17 +23,22 @@ public class CloudflareController {
     }
 
     @PostMapping("/createPolicy")
-    public String createPolicy(@RequestBody CloudflarePolicy policy)
+    public ResponseEntity<String> createPolicy(@RequestBody CloudflarePolicy policy)
     {
-        return cloudflareService.createPolicy(policy);
+        return ResponseEntity.ok(cloudflareService.createPolicy(policy));
     }
 
-    @GetMapping("/getApplications")
-    public String getApplications(@RequestParam String id) {
-        var acc = repository.findByAccountId(id);
-        if (acc.isEmpty()) {
-            return "Account not found";
-        }
-        return cloudflareService.getApplications(acc.get()).getBody();
+    @PostMapping("/setupAccount")
+    public ResponseEntity<String> setupAccount(@RequestBody CloudflareAccount account) {
+        return ResponseEntity.ok(cloudflareAccountService.createAccount(account));
     }
+
+//    @GetMapping("/getApplications")
+//    public String getApplications(@RequestParam String id) {
+//        var acc = repository.findByAccountId(id);
+//        if (acc.isEmpty()) {
+//            return "Account not found";
+//        }
+//        return cloudflareService.getApplications(acc.get()).getBody();
+//    }
 }
