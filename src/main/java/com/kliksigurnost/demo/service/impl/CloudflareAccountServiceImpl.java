@@ -9,7 +9,6 @@ import com.kliksigurnost.demo.service.CloudflareAccountService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
@@ -35,7 +34,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
     @Override
     public String createAccount(CloudflareAccount account) {
         var cloudflareAccount = repository.findByAccountId(account.getAccountId());
-        // if acc doesnt exist create new
+        // if acc doesn't exist create new
         if(cloudflareAccount.isEmpty())
         {
             String appId = getWarpApplicationId(account);

@@ -15,6 +15,7 @@ import lombok.*;
 public class CloudflarePolicy {
     @Id
     String id;
+    String name;
     String action;
     String traffic;
     String cloudflareAccId;

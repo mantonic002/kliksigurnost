@@ -12,17 +12,18 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/policies")
 public class CloudflareController {
     private final CloudflareService cloudflareService;
     private final CloudflareAccountService cloudflareAccountService;
 
 
-    @GetMapping("/getPolicies")
+    @GetMapping
     public ResponseEntity<List<CloudflarePolicy>> getPolicies() {
         return ResponseEntity.ok(cloudflareService.getPoliciesByUser());
     }
 
-    @PostMapping("/createPolicy")
+    @PostMapping
     public ResponseEntity<String> createPolicy(@RequestBody CloudflarePolicy policy)
     {
         return ResponseEntity.ok(cloudflareService.createPolicy(policy));

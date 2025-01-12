@@ -54,7 +54,7 @@ public class CloudflareServiceImpl implements CloudflareService {
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("action", policy.getAction());
-        requestBody.put("name", policy.getUser().getEmail());
+        requestBody.put("name", policy.getName());
         requestBody.put("enabled", true);
         requestBody.put("identity", "identity.email == \"" + policy.getUser().getEmail() + "\"");
         requestBody.put("traffic", policy.getTraffic());
