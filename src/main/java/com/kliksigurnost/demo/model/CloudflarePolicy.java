@@ -1,10 +1,8 @@
 package com.kliksigurnost.demo.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.*;
 import lombok.*;
 
 @Data
@@ -19,7 +17,12 @@ public class CloudflarePolicy {
     String action;
     String traffic;
     String cloudflareAccId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JsonBackReference
     User user;
+
+    @Embedded
+    private Schedule schedule;
 }
+

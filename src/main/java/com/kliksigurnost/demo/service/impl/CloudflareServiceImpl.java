@@ -58,6 +58,7 @@ public class CloudflareServiceImpl implements CloudflareService {
         requestBody.put("enabled", true);
         requestBody.put("identity", "identity.email == \"" + policy.getUser().getEmail() + "\"");
         requestBody.put("traffic", policy.getTraffic());
+        requestBody.put("schedule", policy.getSchedule());
 
         List<String> filters = new ArrayList<>();
         filters.add("dns");
