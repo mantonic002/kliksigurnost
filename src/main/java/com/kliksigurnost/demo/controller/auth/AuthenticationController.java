@@ -53,7 +53,7 @@ public class AuthenticationController {
     }
 
     @GetMapping("/authenticationSuccess")
-    public ResponseEntity<AuthenticationResponse> handleGoogleSuccess(OAuth2AuthenticationToken oAuth2AuthenticationToken) throws IOException {
+    public ResponseEntity<AuthenticationResponse> handleGoogleSuccess(OAuth2AuthenticationToken oAuth2AuthenticationToken){
         var resp = service.authenticateRegisterOAuth2Google(oAuth2AuthenticationToken);
 
         if (resp.getError() == null) {
