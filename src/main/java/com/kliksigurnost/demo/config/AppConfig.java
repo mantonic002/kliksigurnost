@@ -17,7 +17,6 @@ import org.springframework.web.client.RestTemplate;
 
 @Configuration
 @RequiredArgsConstructor
-@PropertySource("classpath:secret-config.properties")
 public class AppConfig {
     private final UserRepository repository;
 
