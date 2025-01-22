@@ -33,7 +33,7 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests((authorize) -> authorize
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/policies/setupAccount").permitAll()
                         .anyRequest().authenticated())  // Secure other endpoints
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/api/auth/authenticate/google")
