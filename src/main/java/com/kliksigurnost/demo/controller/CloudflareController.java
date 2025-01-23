@@ -1,6 +1,7 @@
 package com.kliksigurnost.demo.controller;
 
 import com.kliksigurnost.demo.model.CloudflareAccount;
+import com.kliksigurnost.demo.model.CloudflareDevice;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
 import com.kliksigurnost.demo.service.CloudflareService;
@@ -32,6 +33,11 @@ public class CloudflareController {
     @PostMapping("/setupAccount")
     public ResponseEntity<String> setupAccount(@RequestBody CloudflareAccount account) {
         return ResponseEntity.ok(cloudflareAccountService.createAccount(account));
+    }
+
+    @GetMapping("/devices")
+    public ResponseEntity<List<CloudflareDevice>> getDevices() {
+        return ResponseEntity.ok(cloudflareService.getDevicesByUser());
     }
 
 //    @GetMapping("/getApplications")

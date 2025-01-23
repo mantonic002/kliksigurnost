@@ -3,6 +3,7 @@ package com.kliksigurnost.demo.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kliksigurnost.demo.model.CloudflareDevice;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
 import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
@@ -22,6 +23,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.Map;
 
 @Service
@@ -93,6 +95,51 @@ public class CloudflareServiceImpl implements CloudflareService {
     @Override
     public List<CloudflarePolicy> getPoliciesByUser() {
         return policyRepository.findByUser(userService.getCurrentUser());
+    }
+
+    @Override
+    public List<CloudflareDevice> getDevicesByUser() {
+        User user = userService.getCurrentUser();
+        String url = baseUrl + user.getCloudflareAccount().getAccountId() + "/devices";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", user.getCloudflareAccount().getAuthorizationToken());
+        headers.set("Content-Type", "application/json");
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            Map<String, Object> responseMap = objectMapper.readValue(response.getBody(), Map.class);
+
+            List<Map<String, Object>> devices = (List<Map<String, Object>>) responseMap.get("result");
+
+            // Filter the devices by matching user email and map them to CloudflareDevice objects
+            return devices.stream()
+                    .filter(device -> {
+                        Map<String, Object> userInfo = (Map<String, Object>) device.get("user");
+                        return userInfo != null && userInfo.get("email").equals(user.getEmail());
+                    })
+                    .map(device -> {
+                        return CloudflareDevice.builder()
+                                .id((String) device.get("id"))
+                                .manufacturer((String) device.get("manufacturer"))
+                                .model((String) device.get("model"))
+                                .lastSeenTime((String) device.get("last_seen"))
+                                .email((String) ((Map<String, Object>) device.get("user")).get("email"))
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+
+        } catch (RestClientException e) {
+            logger.error("Error making REST call to Cloudflare API", e);
+            throw new RuntimeException("Error contacting Cloudflare API", e);
+        } catch (Exception e) {
+            logger.error("Unexpected error occurred", e);
+            throw new RuntimeException("Unexpected error occurred", e);
+        }
     }
 
 }
