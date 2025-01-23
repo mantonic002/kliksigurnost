@@ -70,5 +70,13 @@ public class AuthenticationController {
                 .build();
     }
 
+    @GetMapping("/authenticationFailure")
+    public ResponseEntity<AuthenticationResponse> handleGoogleFailure(){
+        // If there's an error, redirect to the login page
+        return ResponseEntity.status(302)
+                .location(URI.create(frontendUri + "/login"))
+                .build();
+    }
+
 
 }
