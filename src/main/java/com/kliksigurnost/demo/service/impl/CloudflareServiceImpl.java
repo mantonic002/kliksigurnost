@@ -117,7 +117,7 @@ public class CloudflareServiceImpl implements CloudflareService {
             List<Map<String, Object>> devices = (List<Map<String, Object>>) responseMap.get("result");
 
             // Filter the devices by matching user email and map them to CloudflareDevice objects
-            return devices.stream()
+            List<CloudflareDevice> deviceList = devices.stream()
                     .filter(device -> {
                         Map<String, Object> userInfo = (Map<String, Object>) device.get("user");
                         return userInfo != null && userInfo.get("email").equals(user.getEmail());
@@ -132,6 +132,14 @@ public class CloudflareServiceImpl implements CloudflareService {
                                 .build();
                     })
                     .collect(Collectors.toList());
+
+            // If user has devices connected and has at least one policy his acc is set up
+            if (!deviceList.isEmpty() && !getPoliciesByUser().isEmpty()) {
+                user.setIsSetUp(true);
+                userService.updateUser(user);
+            }
+
+            return deviceList;
 
         } catch (RestClientException e) {
             logger.error("Error making REST call to Cloudflare API", e);
