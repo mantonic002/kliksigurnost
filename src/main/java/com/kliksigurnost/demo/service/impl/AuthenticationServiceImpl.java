@@ -59,6 +59,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .role(Role.USER)
                 .authProvider(AuthProvider.LOCAL)
                 .cloudflareAccount(cloudflareAcc.get())
+                .isSetUp(false)
                 .build();
         repository.save(user);
 
@@ -112,6 +113,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                     .role(Role.USER)
                     .authProvider(AuthProvider.GOOGLE)
                     .cloudflareAccount(cloudflareAcc.get())
+                    .isSetUp(false)
                     .build();
             repository.save(user);
 

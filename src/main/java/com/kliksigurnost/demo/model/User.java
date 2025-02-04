@@ -29,6 +29,8 @@ public class User implements UserDetails {
 
     private String password;
 
+    private Boolean isSetUp;
+
     @ManyToOne(fetch = FetchType.EAGER)
     private CloudflareAccount cloudflareAccount;
 
@@ -38,7 +40,6 @@ public class User implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     private Role role;
-
 
     @Enumerated(EnumType.STRING)
     private AuthProvider authProvider;

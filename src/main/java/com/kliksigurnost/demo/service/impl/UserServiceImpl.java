@@ -18,4 +18,12 @@ public class UserServiceImpl implements UserService {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return repository.findByEmail(email).orElseThrow();
     }
+
+    @Override
+    public User updateUser(User user) {
+        if (getCurrentUser().getEmail().equals(user.getEmail())) {
+            return repository.save(user);
+        }
+        return null;
+    }
 }

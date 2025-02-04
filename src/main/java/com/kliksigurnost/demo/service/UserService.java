@@ -4,4 +4,6 @@ import com.kliksigurnost.demo.model.User;
 
 public interface UserService {
     User getCurrentUser();
+
+    User updateUser(User user);
 }
