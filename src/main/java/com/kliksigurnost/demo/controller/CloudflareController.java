@@ -40,6 +40,15 @@ public class CloudflareController {
         return ResponseEntity.ok(cloudflareService.getDevicesByUser());
     }
 
+    @GetMapping("/userLogs")
+    public ResponseEntity<String> getUserLogs(
+            @RequestParam String startDateTime,
+            @RequestParam String endDateTime,
+            @RequestParam(required = false) List<String> orderBy) {
+
+        return ResponseEntity.ok(cloudflareService.getLogsForUser(startDateTime, endDateTime, orderBy));
+    }
+
 //    @GetMapping("/getApplications")
 //    public String getApplications(@RequestParam String id) {
 //        var acc = repository.findByAccountId(id);
@@ -48,4 +57,6 @@ public class CloudflareController {
 //        }
 //        return cloudflareService.getApplications(acc.get()).getBody();
 //    }
+
+
 }
