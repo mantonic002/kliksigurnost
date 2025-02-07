@@ -150,4 +150,93 @@ public class CloudflareServiceImpl implements CloudflareService {
         }
     }
 
+    @Override
+    public String getLogsForUser(String startDateTime, String endDateTime, List<String> orderBy) {
+        User user = userService.getCurrentUser();
+
+        // Collect policy IDs
+        List<String> policyIds = new ArrayList<>();
+        for (CloudflarePolicy policy : policyRepository.findByUser(user)) {
+            policyIds.add(policy.getId());
+        }
+
+        String accountId = user.getCloudflareAccount().getAccountId();
+        String authToken = user.getCloudflareAccount().getAuthorizationToken();
+
+        String url = "https://api.cloudflare.com/client/v4/graphql";
+
+        // Construct GraphQL query
+        String query = "query GetRecentQueries($accountId: string!, $datetime_gt: Time!, $datetime_lt: Time, $limit: uint64!, $policyIdsIn: [string!]) {\n" +
+                "  viewer {\n" +
+                "    accounts(filter: {accountTag: $accountId}) {\n" +
+                "      gatewayResolverQueriesAdaptiveGroups(\n" +
+                "        filter: {datetime_gt: $datetime_gt, datetime_lt: $datetime_lt, policyId_in: $policyIdsIn}\n" +
+                "        limit: $limit\n" +
+                "        orderBy: $orderBy\n" +
+                "      ) {\n" +
+                "        count\n" +
+                "        dimensions {\n" +
+                "          categoryIds\n" +
+                "          categoryNames" +
+                "          datetime\n" +
+                "          matchedApplicationId\n" +
+                "          matchedApplicationName\n" +
+                "          policyId\n" +
+                "          policyName\n" +
+                "          queryName\n" +
+                "          resolverDecision\n" +
+                "          scheduleInfo\n" +
+                "        }\n" +
+                "      }\n" +
+                "      accountTag\n" +
+                "    }\n" +
+                "  }\n" +
+                "  cost\n" +
+                "}";
+
+        // Construct the variables for the GraphQL query
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("accountId", accountId);
+        variables.put("datetime_gt", startDateTime);
+        variables.put("datetime_lt", endDateTime);
+        variables.put("limit", 25);
+        variables.put("policyIdsIn", policyIds);  // Add the policyIds filter here
+        List<String> order = new ArrayList<>();
+        order.add("datetime_DESC");
+        variables.put("orderBy", order);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", authToken);
+        headers.set("Content-Type", "application/json");
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            JsonNode responseBody = objectMapper.readTree(response.getBody());
+
+            // Handle and process the response as per your requirement
+            JsonNode logs = responseBody.path("data").path("viewer").path("accounts").get(0)
+                    .path("gatewayResolverQueriesAdaptiveGroups");
+
+            return logs.toString();
+
+        } catch (RestClientException e) {
+            logger.error("Error making REST call to Cloudflare API", e);
+            throw new RuntimeException("Error contacting Cloudflare API", e);
+        } catch (JsonProcessingException e) {
+            logger.error("Error parsing Cloudflare API response", e);
+            throw new RuntimeException("Error processing Cloudflare API response", e);
+        } catch (Exception e) {
+            logger.error("Unexpected error occurred", e);
+            throw new RuntimeException("Unexpected error occurred", e);
+        }
+    }
+
 }

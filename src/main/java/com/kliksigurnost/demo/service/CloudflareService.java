@@ -10,4 +10,6 @@ public interface CloudflareService {
     List<CloudflarePolicy> getPoliciesByUser();
 
     List<CloudflareDevice> getDevicesByUser();
+
+    String getLogsForUser(String startDateTime, String endDateTime, List<String> orderBy);
 }
