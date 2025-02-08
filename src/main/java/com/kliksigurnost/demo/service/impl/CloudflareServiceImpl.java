@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kliksigurnost.demo.model.CloudflareDevice;
+import com.kliksigurnost.demo.model.CloudflareLog;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
 import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
@@ -32,7 +33,7 @@ public class CloudflareServiceImpl implements CloudflareService {
 
     private final RestTemplate restTemplate;
 
-    private final String baseUrl = "https://api.cloudflare.com/client/v4/accounts/";
+    private final String baseUrl = "https://api.cloudflare.com/client/v4/";
 
     private final CloudflarePolicyRepository policyRepository;
     private final UserService userService;
@@ -48,7 +49,7 @@ public class CloudflareServiceImpl implements CloudflareService {
         var account = user.getCloudflareAccount();
         policy.setCloudflareAccId(account.getAccountId());
 
-        String url = baseUrl + account.getAccountId() + "/gateway/rules";
+        String url = baseUrl + account.getAccountId() + "accounts/gateway/rules";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", account.getAuthorizationToken());
@@ -100,7 +101,7 @@ public class CloudflareServiceImpl implements CloudflareService {
     @Override
     public List<CloudflareDevice> getDevicesByUser() {
         User user = userService.getCurrentUser();
-        String url = baseUrl + user.getCloudflareAccount().getAccountId() + "/devices";
+        String url = baseUrl + "accounts/" + user.getCloudflareAccount().getAccountId() + "/devices";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", user.getCloudflareAccount().getAuthorizationToken());
@@ -151,7 +152,7 @@ public class CloudflareServiceImpl implements CloudflareService {
     }
 
     @Override
-    public String getLogsForUser(String startDateTime, String endDateTime, List<String> orderBy) {
+    public List<CloudflareLog> getLogsForUser(String startDateTime, String endDateTime, List<String> orderBy) {
         User user = userService.getCurrentUser();
 
         // Collect policy IDs
@@ -163,7 +164,7 @@ public class CloudflareServiceImpl implements CloudflareService {
         String accountId = user.getCloudflareAccount().getAccountId();
         String authToken = user.getCloudflareAccount().getAuthorizationToken();
 
-        String url = "https://api.cloudflare.com/client/v4/graphql";
+        String url = baseUrl + "graphql";
 
         // Construct GraphQL query
         String query = "query GetRecentQueries($accountId: string!, $datetime_gt: Time!, $datetime_lt: Time, $limit: uint64!, $policyIdsIn: [string!]) {\n" +
@@ -176,16 +177,13 @@ public class CloudflareServiceImpl implements CloudflareService {
                 "      ) {\n" +
                 "        count\n" +
                 "        dimensions {\n" +
-                "          categoryIds\n" +
-                "          categoryNames" +
+                "          categoryNames\n" +
                 "          datetime\n" +
-                "          matchedApplicationId\n" +
                 "          matchedApplicationName\n" +
                 "          policyId\n" +
                 "          policyName\n" +
                 "          queryName\n" +
                 "          resolverDecision\n" +
-                "          scheduleInfo\n" +
                 "        }\n" +
                 "      }\n" +
                 "      accountTag\n" +
@@ -225,7 +223,23 @@ public class CloudflareServiceImpl implements CloudflareService {
             JsonNode logs = responseBody.path("data").path("viewer").path("accounts").get(0)
                     .path("gatewayResolverQueriesAdaptiveGroups");
 
-            return logs.toString();
+            // Map the JSON response to a list of CloudflareLog objects
+            List<CloudflareLog> cloudflareLogs = new ArrayList<>();
+            for (JsonNode logNode : logs) {
+                CloudflareLog cloudflareLog = CloudflareLog.builder()
+                        .categoryNames(objectMapper.convertValue(logNode.path("dimensions").path("categoryNames"), String[].class))
+                        .datetime(logNode.path("dimensions").path("datetime").asText())
+                        .matchedApplicationName(logNode.path("dimensions").path("matchedApplicationName").asText())
+                        .policyId(logNode.path("dimensions").path("policyId").asText())
+                        .policyName(logNode.path("dimensions").path("policyName").asText())
+                        .queryName(logNode.path("dimensions").path("queryName").asText())
+                        .resolverDecision(logNode.path("dimensions").path("resolverDecision").asInt())
+                        .build();
+
+                cloudflareLogs.add(cloudflareLog);
+            }
+
+            return cloudflareLogs;
 
         } catch (RestClientException e) {
             logger.error("Error making REST call to Cloudflare API", e);
@@ -238,5 +252,6 @@ public class CloudflareServiceImpl implements CloudflareService {
             throw new RuntimeException("Unexpected error occurred", e);
         }
     }
+
 
 }

@@ -2,6 +2,7 @@ package com.kliksigurnost.demo.controller;
 
 import com.kliksigurnost.demo.model.CloudflareAccount;
 import com.kliksigurnost.demo.model.CloudflareDevice;
+import com.kliksigurnost.demo.model.CloudflareLog;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
 import com.kliksigurnost.demo.service.CloudflareService;
@@ -41,7 +42,7 @@ public class CloudflareController {
     }
 
     @GetMapping("/userLogs")
-    public ResponseEntity<String> getUserLogs(
+    public ResponseEntity<List<CloudflareLog>> getUserLogs(
             @RequestParam String startDateTime,
             @RequestParam String endDateTime,
             @RequestParam(required = false) List<String> orderBy) {
