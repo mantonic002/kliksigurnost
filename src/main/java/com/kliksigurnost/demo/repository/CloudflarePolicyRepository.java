@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface CloudflarePolicyRepository extends JpaRepository<CloudflarePolicy, String> {
     List<CloudflarePolicy> findByUser(User user);
+    long countByUser(User user);
 }

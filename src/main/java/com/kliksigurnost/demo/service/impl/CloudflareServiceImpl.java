@@ -21,11 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -49,7 +46,14 @@ public class CloudflareServiceImpl implements CloudflareService {
         var account = user.getCloudflareAccount();
         policy.setCloudflareAccId(account.getAccountId());
 
-        String url = baseUrl + account.getAccountId() + "accounts/gateway/rules";
+        // Get the number of policies the user has already created to generate a unique name.
+        long userPolicyCount = policyRepository.countByUser(user);
+        String email = user.getEmail();
+        String policyName = email+ "-" + (userPolicyCount + 1);
+
+        policy.setName(policyName);
+
+        String url = baseUrl + "accounts/" + account.getAccountId() + "/gateway/rules";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", account.getAuthorizationToken());
@@ -219,9 +223,16 @@ public class CloudflareServiceImpl implements CloudflareService {
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode responseBody = objectMapper.readTree(response.getBody());
 
-            // Handle and process the response as per your requirement
-            JsonNode logs = responseBody.path("data").path("viewer").path("accounts").get(0)
-                    .path("gatewayResolverQueriesAdaptiveGroups");
+            JsonNode accountsNode = responseBody.path("data").path("viewer").path("accounts");
+            JsonNode logs = accountsNode.isArray() && !accountsNode.isEmpty()
+                    ? accountsNode.get(0).path("gatewayResolverQueriesAdaptiveGroups")
+                    : null;
+
+            if (logs == null || logs.isMissingNode()) {
+                logger.error("No logs found for the given parameters.");
+                return Collections.emptyList();
+            }
+
 
             // Map the JSON response to a list of CloudflareLog objects
             List<CloudflareLog> cloudflareLogs = new ArrayList<>();
