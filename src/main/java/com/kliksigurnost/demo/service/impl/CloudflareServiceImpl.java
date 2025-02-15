@@ -3,6 +3,9 @@ package com.kliksigurnost.demo.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kliksigurnost.demo.exception.CloudflareApiException;
+import com.kliksigurnost.demo.exception.PolicyNotFoundException;
+import com.kliksigurnost.demo.exception.UnauthorizedAccessException;
 import com.kliksigurnost.demo.model.CloudflareDevice;
 import com.kliksigurnost.demo.model.CloudflareLog;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
@@ -28,15 +31,19 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CloudflareServiceImpl implements CloudflareService {
 
-    private final RestTemplate restTemplate;
-
-    private final String baseUrl = "https://api.cloudflare.com/client/v4/";
-
-    private final CloudflarePolicyRepository policyRepository;
-    private final UserService userService;
-
     private static final Logger logger = LoggerFactory.getLogger(CloudflareServiceImpl.class);
 
+    private static final String CLOUDFLARE_BASE_URL = "https://api.cloudflare.com/client/v4/";
+    private static final String GATEWAY_RULES_ENDPOINT = "accounts/{account_id}/gateway/rules";
+    private static final String DEVICES_ENDPOINT = "accounts/{account_id}/devices";
+    private static final String GRAPHQL_ENDPOINT = "graphql";
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String CONTENT_TYPE_HEADER = "Content-Type";
+    private static final String APPLICATION_JSON = "application/json";
+
+    private final RestTemplate restTemplate;
+    private final CloudflarePolicyRepository policyRepository;
+    private final UserService userService;
 
     @Override
     public String createPolicy(CloudflarePolicy policy) {
@@ -46,54 +53,99 @@ public class CloudflareServiceImpl implements CloudflareService {
         var account = user.getCloudflareAccount();
         policy.setCloudflareAccId(account.getAccountId());
 
-        // Get the number of policies the user has already created to generate a unique name.
-        long userPolicyCount = policyRepository.countByUser(user);
-        String email = user.getEmail();
-        String policyName = email+ "-" + (userPolicyCount + 1);
-
+        String policyName = generatePolicyName(user);
         policy.setName(policyName);
 
-        String url = baseUrl + "accounts/" + account.getAccountId() + "/gateway/rules";
+        String url = buildUrl(GATEWAY_RULES_ENDPOINT, account.getAccountId());
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", account.getAuthorizationToken());
-        headers.set("Content-Type", "application/json");
-
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("action", policy.getAction());
-        requestBody.put("name", policy.getName());
-        requestBody.put("enabled", true);
-        requestBody.put("identity", "identity.email == \"" + policy.getUser().getEmail() + "\"");
-        requestBody.put("traffic", policy.getTraffic());
-        requestBody.put("schedule", policy.getSchedule());
-
-        List<String> filters = new ArrayList<>();
-        filters.add("dns");
-        requestBody.put("filters", filters);
+        HttpHeaders headers = createHeaders(account.getAuthorizationToken());
+        Map<String, Object> requestBody = buildPolicyRequestBody(policy);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            ResponseEntity<String> response = makeApiCall(url, HttpMethod.POST, entity);
+            JsonNode responseBody = parseResponse(response.getBody());
 
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode responseBody = objectMapper.readTree(response.getBody());
-
-            String id =  responseBody.path("result").path("id").asText();
-
-            policy.setId(id);
+            String policyId = responseBody.path("result").path("id").asText();
+            policy.setId(policyId);
             policyRepository.save(policy);
 
             return response.getBody();
-        } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException ("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
             logger.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException ("Error processing Cloudflare API response", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException ("Unexpected error occurred", e);
+            throw new CloudflareApiException("Error processing Cloudflare API response", e);
+        }
+    }
+
+    @Override
+    public void deletePolicy(String policyId) {
+        User user = userService.getCurrentUser();
+        CloudflarePolicy policy = policyRepository.findById(policyId)
+                .orElseThrow(() -> new PolicyNotFoundException("Policy not found"));
+
+        if (!policy.getUser().equals(user)) {
+            throw new UnauthorizedAccessException("Unauthorized to delete this policy");
+        }
+
+        String accountId = user.getCloudflareAccount().getAccountId();
+        String url = buildUrl(GATEWAY_RULES_ENDPOINT, accountId) + "/" + policyId;
+
+        HttpHeaders headers = createHeaders(user.getCloudflareAccount().getAuthorizationToken());
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<String> response = makeApiCall(url, HttpMethod.DELETE, entity);
+            JsonNode responseBody = parseResponse(response.getBody());
+
+            if (responseBody.path("success").asBoolean()) {
+                policyRepository.delete(policy);
+            } else {
+                logger.error("Failed to delete policy from Cloudflare API: {}", responseBody);
+                throw new CloudflareApiException("Failed to delete policy from Cloudflare API");
+            }
+        } catch (JsonProcessingException e) {
+            logger.error("Error parsing Cloudflare API response", e);
+            throw new CloudflareApiException("Error processing Cloudflare API response", e);
+        }
+    }
+
+    @Override
+    public void updatePolicy(String policyId, CloudflarePolicy updatedPolicy) {
+        User user = userService.getCurrentUser();
+        CloudflarePolicy existingPolicy = policyRepository.findById(policyId)
+                .orElseThrow(() -> new PolicyNotFoundException("Policy not found"));
+
+        if (!existingPolicy.getUser().equals(user)) {
+            throw new UnauthorizedAccessException("Unauthorized to update this policy");
+        }
+
+        String accountId = user.getCloudflareAccount().getAccountId();
+        String url = buildUrl(GATEWAY_RULES_ENDPOINT, accountId) + "/" + policyId;
+
+        HttpHeaders headers = createHeaders(user.getCloudflareAccount().getAuthorizationToken());
+        Map<String, Object> requestBody = buildPolicyRequestBody(updatedPolicy);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+        try {
+            ResponseEntity<String> response = makeApiCall(url, HttpMethod.PUT, entity);
+            JsonNode responseBody = parseResponse(response.getBody());
+
+            if (responseBody.path("success").asBoolean()) {
+                existingPolicy.setAction(updatedPolicy.getAction());
+                existingPolicy.setName(updatedPolicy.getName());
+                existingPolicy.setTraffic(updatedPolicy.getTraffic());
+                existingPolicy.setSchedule(updatedPolicy.getSchedule());
+
+                policyRepository.save(existingPolicy);
+            } else {
+                logger.error("Failed to update policy in Cloudflare API: {}", responseBody);
+                throw new CloudflareApiException("Failed to update policy in Cloudflare API");
+            }
+        } catch (JsonProcessingException e) {
+            logger.error("Error parsing Cloudflare API response", e);
+            throw new CloudflareApiException("Error processing Cloudflare API response", e);
         }
     }
 
@@ -105,73 +157,130 @@ public class CloudflareServiceImpl implements CloudflareService {
     @Override
     public List<CloudflareDevice> getDevicesByUser() {
         User user = userService.getCurrentUser();
-        String url = baseUrl + "accounts/" + user.getCloudflareAccount().getAccountId() + "/devices";
+        String url = buildUrl(DEVICES_ENDPOINT, user.getCloudflareAccount().getAccountId());
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", user.getCloudflareAccount().getAuthorizationToken());
-        headers.set("Content-Type", "application/json");
-
+        HttpHeaders headers = createHeaders(user.getCloudflareAccount().getAuthorizationToken());
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            Map<String, Object> responseMap = objectMapper.readValue(response.getBody(), Map.class);
+            ResponseEntity<String> response = makeApiCall(url, HttpMethod.GET, entity);
+            Map<String, Object> responseMap = parseResponseToMap(response.getBody());
 
             List<Map<String, Object>> devices = (List<Map<String, Object>>) responseMap.get("result");
 
-            // Filter the devices by matching user email and map them to CloudflareDevice objects
-            List<CloudflareDevice> deviceList = devices.stream()
+            return devices.stream()
                     .filter(device -> {
                         Map<String, Object> userInfo = (Map<String, Object>) device.get("user");
                         return userInfo != null && userInfo.get("email").equals(user.getEmail());
                     })
-                    .map(device -> {
-                        return CloudflareDevice.builder()
-                                .id((String) device.get("id"))
-                                .manufacturer((String) device.get("manufacturer"))
-                                .model((String) device.get("model"))
-                                .lastSeenTime((String) device.get("last_seen"))
-                                .email((String) ((Map<String, Object>) device.get("user")).get("email"))
-                                .build();
-                    })
+                    .map(this::mapToCloudflareDevice)
                     .collect(Collectors.toList());
 
-            // If user has devices connected and has at least one policy his acc is set up
-            if (!deviceList.isEmpty() && !getPoliciesByUser().isEmpty()) {
-                user.setIsSetUp(true);
-                userService.updateUser(user);
-            }
-
-            return deviceList;
-
-        } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException("Error contacting Cloudflare API", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException("Unexpected error occurred", e);
+        } catch (JsonProcessingException e) {
+            logger.error("Error parsing Cloudflare API response", e);
+            throw new CloudflareApiException("Error processing Cloudflare API response", e);
         }
     }
 
     @Override
     public List<CloudflareLog> getLogsForUser(String startDateTime, String endDateTime, List<String> orderBy) {
         User user = userService.getCurrentUser();
+        List<String> policyIds = policyRepository.findByUser(user).stream()
+                .map(CloudflarePolicy::getId)
+                .collect(Collectors.toList());
 
-        // Collect policy IDs
-        List<String> policyIds = new ArrayList<>();
-        for (CloudflarePolicy policy : policyRepository.findByUser(user)) {
-            policyIds.add(policy.getId());
+        String url = CLOUDFLARE_BASE_URL + GRAPHQL_ENDPOINT;
+        String query = buildGraphQLQuery();
+        Map<String, Object> variables = buildGraphQLVariables(user.getCloudflareAccount().getAccountId(), startDateTime, endDateTime, policyIds, orderBy);
+
+        HttpHeaders headers = createHeaders(user.getCloudflareAccount().getAuthorizationToken());
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(Map.of("query", query, "variables", variables), headers);
+
+        try {
+            ResponseEntity<String> response = makeApiCall(url, HttpMethod.POST, entity);
+            JsonNode responseBody = parseResponse(response.getBody());
+
+            JsonNode logs = responseBody.path("data").path("viewer").path("accounts").get(0)
+                    .path("gatewayResolverQueriesAdaptiveGroups");
+
+            if (logs == null || logs.isMissingNode()) {
+                logger.error("No logs found for the given parameters.");
+                return Collections.emptyList();
+            }
+
+            return mapLogsToCloudflareLogs(logs);
+        } catch (JsonProcessingException e) {
+            logger.error("Error parsing Cloudflare API response", e);
+            throw new CloudflareApiException("Error processing Cloudflare API response", e);
         }
+    }
 
-        String accountId = user.getCloudflareAccount().getAccountId();
-        String authToken = user.getCloudflareAccount().getAuthorizationToken();
+    // Helper Methods
+    private String generatePolicyName(User user) {
+        String email = user.getEmail();
+        String uniqueId = UUID.randomUUID().toString().substring(0, 8); // Short UUID
+        return email + "-" + uniqueId;
+    }
 
-        String url = baseUrl + "graphql";
+    private HttpHeaders createHeaders(String authToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(AUTHORIZATION_HEADER, authToken);
+        headers.set(CONTENT_TYPE_HEADER, APPLICATION_JSON);
+        return headers;
+    }
 
-        // Construct GraphQL query
-        String query = "query GetRecentQueries($accountId: string!, $datetime_gt: Time!, $datetime_lt: Time, $limit: uint64!, $policyIdsIn: [string!]) {\n" +
+    private Map<String, Object> buildPolicyRequestBody(CloudflarePolicy policy) {
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("action", policy.getAction());
+        requestBody.put("name", policy.getName());
+        requestBody.put("enabled", true);
+        requestBody.put("identity", "identity.email == \"" + userService.getCurrentUser().getEmail() + "\"");
+        requestBody.put("traffic", policy.getTraffic());
+        requestBody.put("schedule", policy.getSchedule());
+
+        List<String> filters = new ArrayList<>();
+        filters.add("dns");
+        requestBody.put("filters", filters);
+
+        return requestBody;
+    }
+
+    private String buildUrl(String endpoint, String accountId) {
+        return CLOUDFLARE_BASE_URL + endpoint.replace("{account_id}", accountId);
+    }
+
+    private <T> ResponseEntity<String> makeApiCall(String url, HttpMethod method, HttpEntity<T> entity) {
+        try {
+            return restTemplate.exchange(url, method, entity, String.class);
+        } catch (RestClientException e) {
+            logger.error("Error making REST call to Cloudflare API", e);
+            throw new CloudflareApiException("Error contacting Cloudflare API", e);
+        }
+    }
+
+    private JsonNode parseResponse(String responseBody) throws JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readTree(responseBody);
+    }
+
+    private Map<String, Object> parseResponseToMap(String responseBody) throws JsonProcessingException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readValue(responseBody, Map.class);
+    }
+
+    private CloudflareDevice mapToCloudflareDevice(Map<String, Object> device) {
+        Map<String, Object> userInfo = (Map<String, Object>) device.get("user");
+        return CloudflareDevice.builder()
+                .id((String) device.get("id"))
+                .manufacturer((String) device.get("manufacturer"))
+                .model((String) device.get("model"))
+                .lastSeenTime((String) device.get("last_seen"))
+                .email((String) userInfo.get("email"))
+                .build();
+    }
+
+    private String buildGraphQLQuery() {
+        return "query GetRecentQueries($accountId: string!, $datetime_gt: Time!, $datetime_lt: Time, $limit: uint64!, $policyIdsIn: [string!]) {\n" +
                 "  viewer {\n" +
                 "    accounts(filter: {accountTag: $accountId}) {\n" +
                 "      gatewayResolverQueriesAdaptiveGroups(\n" +
@@ -195,74 +304,37 @@ public class CloudflareServiceImpl implements CloudflareService {
                 "  }\n" +
                 "  cost\n" +
                 "}";
+    }
 
-        // Construct the variables for the GraphQL query
+    private Map<String, Object> buildGraphQLVariables(String accountId, String startDateTime, String endDateTime, List<String> policyIds, List<String> orderBy) {
         Map<String, Object> variables = new HashMap<>();
         variables.put("accountId", accountId);
         variables.put("datetime_gt", startDateTime);
         variables.put("datetime_lt", endDateTime);
         variables.put("limit", 25);
-        variables.put("policyIdsIn", policyIds);  // Add the policyIds filter here
-        List<String> order = new ArrayList<>();
-        order.add("datetime_DESC");
-        variables.put("orderBy", order);
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", authToken);
-        headers.set("Content-Type", "application/json");
-
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("query", query);
-        requestBody.put("variables", variables);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
-
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode responseBody = objectMapper.readTree(response.getBody());
-
-            JsonNode accountsNode = responseBody.path("data").path("viewer").path("accounts");
-            JsonNode logs = accountsNode.isArray() && !accountsNode.isEmpty()
-                    ? accountsNode.get(0).path("gatewayResolverQueriesAdaptiveGroups")
-                    : null;
-
-            if (logs == null || logs.isMissingNode()) {
-                logger.error("No logs found for the given parameters.");
-                return Collections.emptyList();
-            }
-
-
-            // Map the JSON response to a list of CloudflareLog objects
-            List<CloudflareLog> cloudflareLogs = new ArrayList<>();
-            for (JsonNode logNode : logs) {
-                CloudflareLog cloudflareLog = CloudflareLog.builder()
-                        .categoryNames(objectMapper.convertValue(logNode.path("dimensions").path("categoryNames"), String[].class))
-                        .datetime(logNode.path("dimensions").path("datetime").asText())
-                        .matchedApplicationName(logNode.path("dimensions").path("matchedApplicationName").asText())
-                        .policyId(logNode.path("dimensions").path("policyId").asText())
-                        .policyName(logNode.path("dimensions").path("policyName").asText())
-                        .queryName(logNode.path("dimensions").path("queryName").asText())
-                        .resolverDecision(logNode.path("dimensions").path("resolverDecision").asInt())
-                        .build();
-
-                cloudflareLogs.add(cloudflareLog);
-            }
-
-            return cloudflareLogs;
-
-        } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException("Error contacting Cloudflare API", e);
-        } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException("Error processing Cloudflare API response", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException("Unexpected error occurred", e);
-        }
+        variables.put("policyIdsIn", policyIds);
+        variables.put("orderBy", orderBy);
+        return variables;
     }
 
+    private List<CloudflareLog> mapLogsToCloudflareLogs(JsonNode logs) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        List<CloudflareLog> cloudflareLogs = new ArrayList<>();
 
+        logs.forEach(logNode -> {
+            CloudflareLog cloudflareLog = CloudflareLog.builder()
+                    .categoryNames(objectMapper.convertValue(logNode.path("dimensions").path("categoryNames"), String[].class))
+                    .datetime(logNode.path("dimensions").path("datetime").asText())
+                    .matchedApplicationName(logNode.path("dimensions").path("matchedApplicationName").asText())
+                    .policyId(logNode.path("dimensions").path("policyId").asText())
+                    .policyName(logNode.path("dimensions").path("policyName").asText())
+                    .queryName(logNode.path("dimensions").path("queryName").asText())
+                    .resolverDecision(logNode.path("dimensions").path("resolverDecision").asInt())
+                    .build();
+
+            cloudflareLogs.add(cloudflareLog);
+        });
+
+        return cloudflareLogs;
+    }
 }

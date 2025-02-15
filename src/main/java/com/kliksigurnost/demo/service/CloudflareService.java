@@ -8,6 +8,11 @@ import java.util.List;
 
 public interface CloudflareService {
     String createPolicy(CloudflarePolicy req);
+
+    void deletePolicy(String policyId);
+
+    void updatePolicy(String policyId, CloudflarePolicy updatedPolicy);
+
     List<CloudflarePolicy> getPoliciesByUser();
 
     List<CloudflareDevice> getDevicesByUser();
