@@ -1,5 +1,8 @@
 package com.kliksigurnost.demo.controller;
 
+import com.kliksigurnost.demo.exception.CloudflareApiException;
+import com.kliksigurnost.demo.exception.PolicyNotFoundException;
+import com.kliksigurnost.demo.exception.UnauthorizedAccessException;
 import com.kliksigurnost.demo.model.CloudflareAccount;
 import com.kliksigurnost.demo.model.CloudflareDevice;
 import com.kliksigurnost.demo.model.CloudflareLog;
@@ -7,6 +10,7 @@ import com.kliksigurnost.demo.model.CloudflarePolicy;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
 import com.kliksigurnost.demo.service.CloudflareService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,48 +20,86 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/api/policies")
 public class CloudflareController {
+
     private final CloudflareService cloudflareService;
     private final CloudflareAccountService cloudflareAccountService;
 
-
+    // Get all policies for the current user
     @GetMapping
     public ResponseEntity<List<CloudflarePolicy>> getPolicies() {
         return ResponseEntity.ok(cloudflareService.getPoliciesByUser());
     }
 
+    // Create a new policy
     @PostMapping
-    public ResponseEntity<String> createPolicy(@RequestBody CloudflarePolicy policy)
-    {
-        return ResponseEntity.ok(cloudflareService.createPolicy(policy));
+    public ResponseEntity<String> createPolicy(@RequestBody CloudflarePolicy policy) {
+        try {
+            return ResponseEntity.ok(cloudflareService.createPolicy(policy));
+        } catch (CloudflareApiException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
     }
 
+    // Delete a policy by ID
+    @DeleteMapping("/{policyId}")
+    public ResponseEntity<String> deletePolicy(@PathVariable String policyId) {
+        try {
+            cloudflareService.deletePolicy(policyId);
+            return ResponseEntity.ok("Policy deleted successfully");
+        } catch (PolicyNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (UnauthorizedAccessException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (CloudflareApiException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    // Update an existing policy
+    @PutMapping("/{policyId}")
+    public ResponseEntity<String> updatePolicy(@PathVariable String policyId, @RequestBody CloudflarePolicy updatedPolicy) {
+        try {
+            cloudflareService.updatePolicy(policyId, updatedPolicy);
+            return ResponseEntity.ok("Policy updated successfully");
+        } catch (PolicyNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (UnauthorizedAccessException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (CloudflareApiException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    // Set up a Cloudflare account
     @PostMapping("/setupAccount")
     public ResponseEntity<String> setupAccount(@RequestBody CloudflareAccount account) {
-        return ResponseEntity.ok(cloudflareAccountService.createAccount(account));
+        try {
+            return ResponseEntity.ok(cloudflareAccountService.createAccount(account));
+        } catch (CloudflareApiException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
     }
 
+    // Get devices for the current user
     @GetMapping("/devices")
     public ResponseEntity<List<CloudflareDevice>> getDevices() {
-        return ResponseEntity.ok(cloudflareService.getDevicesByUser());
+        try {
+            return ResponseEntity.ok(cloudflareService.getDevicesByUser());
+        } catch (CloudflareApiException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
+    // Get logs for the current user
     @GetMapping("/userLogs")
     public ResponseEntity<List<CloudflareLog>> getUserLogs(
             @RequestParam String startDateTime,
             @RequestParam String endDateTime,
             @RequestParam(required = false) List<String> orderBy) {
-
-        return ResponseEntity.ok(cloudflareService.getLogsForUser(startDateTime, endDateTime, orderBy));
+        try {
+            return ResponseEntity.ok(cloudflareService.getLogsForUser(startDateTime, endDateTime, orderBy));
+        } catch (CloudflareApiException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
-
-//    @GetMapping("/getApplications")
-//    public String getApplications(@RequestParam String id) {
-//        var acc = repository.findByAccountId(id);
-//        if (acc.isEmpty()) {
-//            return "Account not found";
-//        }
-//        return cloudflareService.getApplications(acc.get()).getBody();
-//    }
-
-
 }
