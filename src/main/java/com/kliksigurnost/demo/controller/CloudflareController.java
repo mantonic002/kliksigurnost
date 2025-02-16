@@ -8,7 +8,9 @@ import com.kliksigurnost.demo.model.CloudflareDevice;
 import com.kliksigurnost.demo.model.CloudflareLog;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
-import com.kliksigurnost.demo.service.CloudflareService;
+import com.kliksigurnost.demo.service.CloudflareDeviceService;
+import com.kliksigurnost.demo.service.CloudflareLogService;
+import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +23,9 @@ import java.util.List;
 @RequestMapping("/api/policies")
 public class CloudflareController {
 
-    private final CloudflareService cloudflareService;
+    private final CloudflarePolicyService cloudflareService;
+    private final CloudflareLogService cloudflareLogService;
+    private final CloudflareDeviceService cloudflareDeviceService;
     private final CloudflareAccountService cloudflareAccountService;
 
     // Get all policies for the current user
@@ -84,7 +88,7 @@ public class CloudflareController {
     @GetMapping("/devices")
     public ResponseEntity<List<CloudflareDevice>> getDevices() {
         try {
-            return ResponseEntity.ok(cloudflareService.getDevicesByUser());
+            return ResponseEntity.ok(cloudflareDeviceService.getDevicesByUser());
         } catch (CloudflareApiException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
@@ -97,7 +101,7 @@ public class CloudflareController {
             @RequestParam String endDateTime,
             @RequestParam(required = false) List<String> orderBy) {
         try {
-            return ResponseEntity.ok(cloudflareService.getLogsForUser(startDateTime, endDateTime, orderBy));
+            return ResponseEntity.ok(cloudflareLogService.getLogsForUser(startDateTime, endDateTime, orderBy));
         } catch (CloudflareApiException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
