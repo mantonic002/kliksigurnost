@@ -36,7 +36,15 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
     private final UserService userService;
 
     @Override
-    public List<CloudflareLog> getLogsForUser(String startDateTime, String endDateTime, List<String> orderBy) {
+    public List<CloudflareLog> getLogsForUser(
+            String startDateTime,
+            String endDateTime,
+            List<String> orderBy,
+            String lastDateTime,
+            String lastPolicyId,
+            int pageSize,
+            String direction
+    ) {
         User user = userService.getCurrentUser();
         List<String> policyIds = policyRepository.findByUser(user).stream()
                 .map(CloudflarePolicy::getId)
@@ -44,8 +52,10 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
 
         String url = makeApiCall.buildUrl(GRAPHQL_ENDPOINT, user.getCloudflareAccount().getAccountId());
         String query = buildGraphQLQuery();
-        Map<String, Object> variables = buildGraphQLVariables(user.getCloudflareAccount().getAccountId(), startDateTime, endDateTime, policyIds, orderBy);
-
+        Map<String, Object> variables = buildGraphQLVariables(
+                user.getCloudflareAccount().getAccountId(), startDateTime, endDateTime, policyIds,
+                orderBy, lastDateTime, lastPolicyId, pageSize, direction
+        );
         HttpHeaders headers = makeApiCall.createHeaders(user.getCloudflareAccount().getAuthorizationToken());
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(Map.of("query", query, "variables", variables), headers);
 
@@ -71,11 +81,24 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
 
     private String buildGraphQLQuery() {
         return """
-                query GetRecentQueries($accountId: string!, $datetime_gt: Time!, $datetime_lt: Time, $limit: uint64!, $policyIdsIn: [string!]) {
+                query GetRecentQueries(
+                  $accountId: string!,
+                  $datetime_gt: Time!,
+                  $datetime_lt: Time,
+                  $limit: uint64!,
+                  $policyIdsIn: [string!],
+                  $orderBy: [string!],
+                  $datetime_geq: Time,
+                ) {
                   viewer {
                     accounts(filter: {accountTag: $accountId}) {
                       gatewayResolverQueriesAdaptiveGroups(
-                        filter: {datetime_gt: $datetime_gt, datetime_lt: $datetime_lt, policyId_in: $policyIdsIn}
+                        filter: {
+                          datetime_gt: $datetime_gt,
+                          datetime_lt: $datetime_lt,
+                          policyId_in: $policyIdsIn,
+                          datetime_geq: $datetime_geq,
+                        }
                         limit: $limit
                         orderBy: $orderBy
                       ) {
@@ -90,10 +113,8 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
                           resolverDecision
                         }
                       }
-                      accountTag
                     }
                   }
-                  cost
                 }""";
     }
 
@@ -118,14 +139,25 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
         return cloudflareLogs;
     }
 
-    private Map<String, Object> buildGraphQLVariables(String accountId, String startDateTime, String endDateTime, List<String> policyIds, List<String> orderBy) {
+    private Map<String, Object> buildGraphQLVariables(
+            String accountId, String start, String end,
+            List<String> policyIds, List<String> orderBy,
+            String lastDateTime, String lastPolicyId,
+            int limit, String direction
+    ) {
         Map<String, Object> variables = new HashMap<>();
         variables.put("accountId", accountId);
-        variables.put("datetime_gt", startDateTime);
-        variables.put("datetime_lt", endDateTime);
-        variables.put("limit", 25);
+        variables.put("datetime_gt", start);
+        variables.put("datetime_lt", end);
+        variables.put("limit", limit);
         variables.put("policyIdsIn", policyIds);
         variables.put("orderBy", orderBy);
+
+        // Add pagination filters for next page
+        if ("next".equals(direction) && lastDateTime != null && lastPolicyId != null) {
+            variables.put("datetime_lt", lastDateTime);
+        }
+
         return variables;
     }
 }

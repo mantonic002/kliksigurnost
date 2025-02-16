@@ -99,9 +99,14 @@ public class CloudflareController {
     public ResponseEntity<List<CloudflareLog>> getUserLogs(
             @RequestParam String startDateTime,
             @RequestParam String endDateTime,
-            @RequestParam(required = false) List<String> orderBy) {
+            @RequestParam(defaultValue = "datetime_DESC") List<String> orderBy,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "25") int pageSize,
+            @RequestParam(required = false) String lastDateTime,
+            @RequestParam(required = false) String lastPolicyId,
+            @RequestParam(required = false) String direction) {
         try {
-            return ResponseEntity.ok(cloudflareLogService.getLogsForUser(startDateTime, endDateTime, orderBy));
+            return ResponseEntity.ok(cloudflareLogService.getLogsForUser(startDateTime, endDateTime, orderBy, lastDateTime, lastPolicyId, pageSize, direction));
         } catch (CloudflareApiException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
