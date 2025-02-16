@@ -7,8 +7,7 @@ import com.kliksigurnost.demo.model.CloudflareAccount;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
@@ -16,13 +15,13 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CloudflareAccountServiceImpl implements CloudflareAccountService {
 
     private final RestTemplate restTemplate;
     private final CloudflareAccountRepository repository;
-    private static final Logger logger = LoggerFactory.getLogger(CloudflareAccountServiceImpl.class);
     private static final String BASE_URL = "https://api.cloudflare.com/client/v4/accounts/";
 
     @Override
@@ -50,7 +49,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
             return response.getBody();
         } catch (RestClientException e) {
-            logger.error("Error fetching policies from Cloudflare API", e);
+            log.error("Error fetching policies from Cloudflare API", e);
             throw new RuntimeException("Error contacting Cloudflare API", e);
         }
     }
@@ -71,10 +70,10 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             JsonNode responseBody = new ObjectMapper().readTree(response.getBody());
             return responseBody.path("result").path("id").asText();
         } catch (RestClientException e) {
-            logger.error("Error creating enrollment application", e);
+            log.error("Error creating enrollment application", e);
             throw new RuntimeException("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new RuntimeException("Error processing Cloudflare API response", e);
         }
     }
@@ -86,7 +85,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
         try {
             return restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
         } catch (RestClientException e) {
-            logger.error("Error fetching applications from Cloudflare API", e);
+            log.error("Error fetching applications from Cloudflare API", e);
             throw new RuntimeException("Error contacting Cloudflare API", e);
         }
     }
@@ -104,10 +103,10 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             JsonNode responseBody = new ObjectMapper().readTree(response.getBody());
             return responseBody.path("result").path("id").asText();
         } catch (RestClientException e) {
-            logger.error("Error creating enrollment policy", e);
+            log.error("Error creating enrollment policy", e);
             throw new RuntimeException("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new RuntimeException("Error processing Cloudflare API response", e);
         }
     }
@@ -131,7 +130,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, entity, String.class);
             return response.getBody();
         } catch (RestClientException e) {
-            logger.error("Error updating Cloudflare policy", e);
+            log.error("Error updating Cloudflare policy", e);
             throw new RuntimeException("Error updating Cloudflare policy", e);
         }
     }
@@ -158,10 +157,10 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
                 }
             }
         } catch (RestClientException e) {
-            logger.error("Error fetching applications from Cloudflare API", e);
+            log.error("Error fetching applications from Cloudflare API", e);
             throw new RuntimeException("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new RuntimeException("Error processing Cloudflare API response", e);
         }
         return null;
@@ -183,10 +182,10 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
                 }
             }
         } catch (RestClientException e) {
-            logger.error("Error fetching applications from Cloudflare API", e);
+            log.error("Error fetching applications from Cloudflare API", e);
             throw new RuntimeException("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new RuntimeException("Error processing Cloudflare API response", e);
         }
         return null;

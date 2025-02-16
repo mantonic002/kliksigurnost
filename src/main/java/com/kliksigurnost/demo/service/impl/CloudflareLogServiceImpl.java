@@ -12,8 +12,7 @@ import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
 import com.kliksigurnost.demo.service.CloudflareLogService;
 import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -23,11 +22,10 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CloudflareLogServiceImpl implements CloudflareLogService {
-    private static final Logger logger = LoggerFactory.getLogger(CloudflareLogServiceImpl.class);
-
     private static final String GRAPHQL_ENDPOINT = "graphql";
 
     private final MakeApiCall makeApiCall;
@@ -67,13 +65,13 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
                     .path("gatewayResolverQueriesAdaptiveGroups");
 
             if (logs == null || logs.isMissingNode()) {
-                logger.error("No logs found for the given parameters.");
+                log.error("No logs found for the given parameters.");
                 return Collections.emptyList();
             }
 
             return mapLogsToCloudflareLogs(logs);
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new CloudflareApiException("Error processing Cloudflare API response", e);
         }
     }
