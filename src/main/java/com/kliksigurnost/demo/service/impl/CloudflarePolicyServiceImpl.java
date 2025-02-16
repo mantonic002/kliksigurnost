@@ -12,8 +12,7 @@ import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
 import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -23,12 +22,10 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
-
-    private static final Logger logger = LoggerFactory.getLogger(CloudflarePolicyServiceImpl.class);
-
     private static final String GATEWAY_RULES_ENDPOINT = "accounts/{account_id}/gateway/rules";
 
     private final MakeApiCall makeApiCall;
@@ -66,7 +63,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
 
             return response.getBody();
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new CloudflareApiException("Error processing Cloudflare API response", e);
         }
     }
@@ -97,11 +94,11 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 // Update the "allow-all" policy
                 updateAllowAllPolicy(user);
             } else {
-                logger.error("Failed to delete policy from Cloudflare API: {}", responseBody);
+                log.error("Failed to delete policy from Cloudflare API: {}", responseBody);
                 throw new CloudflareApiException("Failed to delete policy from Cloudflare API");
             }
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new CloudflareApiException("Error processing Cloudflare API response", e);
         }
     }
@@ -139,11 +136,11 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 // Update the "allow-all" policy
                 updateAllowAllPolicy(user);
             } else {
-                logger.error("Failed to update policy in Cloudflare API: {}", responseBody);
+                log.error("Failed to update policy in Cloudflare API: {}", responseBody);
                 throw new CloudflareApiException("Failed to update policy in Cloudflare API");
             }
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new CloudflareApiException("Error processing Cloudflare API response", e);
         }
     }
@@ -215,7 +212,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 // Save the "allow-all" policy to the database
                 return policyRepository.save(_allowAllPolicy);
             } catch (JsonProcessingException e) {
-                logger.error("Error parsing Cloudflare API response", e);
+                log.error("Error parsing Cloudflare API response", e);
                 throw new CloudflareApiException("Error processing Cloudflare API response", e);
             }
         }
@@ -245,11 +242,11 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
             JsonNode responseBody = makeApiCall.parseResponse(response.getBody());
 
             if (!responseBody.path("success").asBoolean()) {
-                logger.error("Failed to update allow-all policy in Cloudflare API: {}", responseBody);
+                log.error("Failed to update allow-all policy in Cloudflare API: {}", responseBody);
                 throw new CloudflareApiException("Failed to update allow-all policy in Cloudflare API");
             }
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new CloudflareApiException("Error processing Cloudflare API response", e);
         }
     }
@@ -262,16 +259,16 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
         // Extract blocked categories, app types, and app IDs from user policies
         for (CloudflarePolicy policy : userPolicies) {
             if (!policy.isAllowAll()) { // Skip the "allow-all" policy itself
-                logger.debug("Processing policy traffic: {}", policy.getTraffic());
+                log.debug("Processing policy traffic: {}", policy.getTraffic());
                 extractBlockedCategories(policy.getTraffic(), blockedCategories);
                 extractBlockedAppTypes(policy.getTraffic(), blockedAppTypes);
                 extractBlockedAppIds(policy.getTraffic(), blockedAppIds);
             }
         }
 
-        logger.debug("Blocked categories: {}", blockedCategories);
-        logger.debug("Blocked app types: {}", blockedAppTypes);
-        logger.debug("Blocked app IDs: {}", blockedAppIds);
+        log.debug("Blocked categories: {}", blockedCategories);
+        log.debug("Blocked app types: {}", blockedAppTypes);
+        log.debug("Blocked app IDs: {}", blockedAppIds);
 
         // Build the "allow-all" traffic string
         StringBuilder trafficBuilder = new StringBuilder();
@@ -294,7 +291,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
         }
 
         String trafficString = trafficBuilder.toString();
-        logger.debug("Generated allow-all traffic string: {}", trafficString);
+        log.debug("Generated allow-all traffic string: {}", trafficString);
         return "not(" + trafficString + ")";
     }
 
@@ -308,7 +305,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 blockedCategories.add(Integer.parseInt(category));
             }
         } else {
-            logger.debug("No categories found in traffic: {}", traffic);
+            log.debug("No categories found in traffic: {}", traffic);
         }
     }
 
@@ -322,7 +319,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 blockedAppTypes.add(Integer.parseInt(appType));
             }
         } else {
-            logger.debug("No app types found in traffic: {}", traffic);
+            log.debug("No app types found in traffic: {}", traffic);
         }
     }
 
@@ -336,7 +333,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 blockedAppIds.add(Integer.parseInt(appId));
             }
         } else {
-            logger.debug("No app IDs found in traffic: {}", traffic);
+            log.debug("No app IDs found in traffic: {}", traffic);
         }
     }
 }

@@ -20,119 +20,107 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class AuthenticationServiceImpl implements AuthenticationService {
 
-    private final UserRepository repository;
-
-    // security fields
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-
-    // cloudflare connection fields
     private final CloudflareAccountRepository cloudflareAccountRepository;
     private final CloudflareAccountService cloudflareService;
 
     @Override
     public AuthenticationResponse register(RegisterRequest request) {
-        // check if user already exists
-        if(repository.existsByEmail(request.getEmail()))
-        {
-            return AuthenticationResponse.builder()
-                    .error("User with that email already exists")
-                    .build();
+        if (userRepository.existsByEmail(request.getEmail())) {
+            return buildErrorResponse("User with that email already exists");
         }
 
-        // find cloudflare account with free seat
-        var cloudflareAcc = cloudflareAccountRepository.findFirstByUserNumIsLessThan(50);
-        if (cloudflareAcc.isEmpty()) {
-            return AuthenticationResponse.builder()
-                    .error("No more slots, try again later")
-                    .build();
+        Optional<CloudflareAccount> cloudflareAccountOpt = cloudflareAccountRepository.findFirstByUserNumIsLessThan(50);
+        if (cloudflareAccountOpt.isEmpty()) {
+            return buildErrorResponse("No more slots, try again later");
         }
 
-        var user = User.builder()
-                .email(request.getEmail())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER)
-                .authProvider(AuthProvider.LOCAL)
-                .cloudflareAccount(cloudflareAcc.get())
-                .isSetUp(false)
-                .build();
-        repository.save(user);
+        CloudflareAccount cloudflareAccount = cloudflareAccountOpt.get();
+        User user = createUser(request, cloudflareAccount);
+        userRepository.save(user);
 
+        updateCloudflareAccount(cloudflareAccount, request.getEmail());
 
-
-        CloudflareAccount acc = cloudflareAcc.get();
-
-        // update enrollment policy to contain registered user
-        cloudflareService.updateEnrollmentPolicyAddEmail(acc.getAccountId(), request.getEmail());
-
-        // when user is created update userNum in cloudflare acc
-        acc.setUserNum(acc.getUserNum() + 1);
-        cloudflareAccountRepository.save(acc);
-
-        var jwtToken = jwtService.generateToken(user);
-        return AuthenticationResponse.builder()
-                .token(jwtToken)
-                .build();
+        String jwtToken = jwtService.generateToken(user);
+        return AuthenticationResponse.builder().token(jwtToken).build();
     }
 
     @Override
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
-        var user = repository.findByEmail(request.getEmail()).orElseThrow();
-        var jwtToken = jwtService.generateToken(user);
-        return AuthenticationResponse.builder()
-                .token(jwtToken)
+        User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
+        String jwtToken = jwtService.generateToken(user);
+        return AuthenticationResponse.builder().token(jwtToken).build();
+    }
+
+    @Override
+    public AuthenticationResponse authenticateRegisterOAuth2Google(OAuth2AuthenticationToken authToken) {
+        OAuth2User oAuth2User = authToken.getPrincipal();
+        String email = oAuth2User.getAttribute("email");
+
+        Optional<User> existingUser = userRepository.findByEmail(email);
+        if (existingUser.isPresent()) {
+            return buildJwtResponse(existingUser.get());
+        }
+
+        Optional<CloudflareAccount> cloudflareAccountOpt = cloudflareAccountRepository.findFirstByUserNumIsLessThan(50);
+        if (cloudflareAccountOpt.isEmpty()) {
+            return buildErrorResponse("No more slots, try again later");
+        }
+
+        CloudflareAccount cloudflareAccount = cloudflareAccountOpt.get();
+        User user = createOAuthUser(email, cloudflareAccount);
+        userRepository.save(user);
+
+        updateCloudflareAccount(cloudflareAccount, email);
+
+        return buildJwtResponse(user);
+    }
+
+    private User createUser(RegisterRequest request, CloudflareAccount cloudflareAccount) {
+        return User.builder()
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.USER)
+                .authProvider(AuthProvider.LOCAL)
+                .cloudflareAccount(cloudflareAccount)
+                .isSetUp(false)
                 .build();
     }
 
-    public AuthenticationResponse authenticateRegisterOAuth2Google(OAuth2AuthenticationToken auth2AuthenticationToken) {
-        OAuth2User oAuth2User = auth2AuthenticationToken.getPrincipal();
-        String email = oAuth2User.getAttribute("email");
-
-        User user;
-        if(!repository.existsByEmail(email)) {
-            var cloudflareAcc = cloudflareAccountRepository.findFirstByUserNumIsLessThan(50);
-            if (cloudflareAcc.isEmpty()) {
-                return AuthenticationResponse.builder()
-                        .error("No more slots, try again later")
-                        .build();
-            }
-
-            user = User.builder()
-                    .email(email)
-                    .role(Role.USER)
-                    .authProvider(AuthProvider.GOOGLE)
-                    .cloudflareAccount(cloudflareAcc.get())
-                    .isSetUp(false)
-                    .build();
-            repository.save(user);
-
-
-
-            CloudflareAccount acc = cloudflareAcc.get();
-
-            // update enrollment policy to contain registered user
-            cloudflareService.updateEnrollmentPolicyAddEmail(acc.getAccountId(), email);
-
-            // when user is created update userNum in cloudflare acc
-            acc.setUserNum(acc.getUserNum() + 1);
-            cloudflareAccountRepository.save(acc);
-        } else {
-            user = repository.findByEmail(email).orElseThrow();
-        }
-        var jwtToken = jwtService.generateToken(user);
-        return AuthenticationResponse.builder()
-                .token(jwtToken)
+    private User createOAuthUser(String email, CloudflareAccount cloudflareAccount) {
+        return User.builder()
+                .email(email)
+                .role(Role.USER)
+                .authProvider(AuthProvider.GOOGLE)
+                .cloudflareAccount(cloudflareAccount)
+                .isSetUp(false)
                 .build();
+    }
+
+    private void updateCloudflareAccount(CloudflareAccount cloudflareAccount, String email) {
+        cloudflareService.updateEnrollmentPolicyAddEmail(cloudflareAccount.getAccountId(), email);
+        cloudflareAccount.setUserNum(cloudflareAccount.getUserNum() + 1);
+        cloudflareAccountRepository.save(cloudflareAccount);
+    }
+
+    private AuthenticationResponse buildErrorResponse(String errorMessage) {
+        return AuthenticationResponse.builder().error(errorMessage).build();
+    }
+
+    private AuthenticationResponse buildJwtResponse(User user) {
+        String jwtToken = jwtService.generateToken(user);
+        return AuthenticationResponse.builder().token(jwtToken).build();
     }
 }

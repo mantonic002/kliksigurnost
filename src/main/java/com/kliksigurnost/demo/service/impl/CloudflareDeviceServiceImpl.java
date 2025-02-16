@@ -1,13 +1,14 @@
-package com.kliksigurnost.demo.service;
+package com.kliksigurnost.demo.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.kliksigurnost.demo.exception.CloudflareApiException;
 import com.kliksigurnost.demo.helper.MakeApiCall;
 import com.kliksigurnost.demo.model.CloudflareDevice;
 import com.kliksigurnost.demo.model.User;
+import com.kliksigurnost.demo.service.CloudflareDeviceService;
+import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -18,10 +19,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CloudflareDeviceServiceImpl implements CloudflareDeviceService {
-    private static final Logger logger = LoggerFactory.getLogger(CloudflareDeviceServiceImpl.class);
 
     private static final String DEVICES_ENDPOINT = "accounts/{account_id}/devices";
 
@@ -51,7 +52,7 @@ public class CloudflareDeviceServiceImpl implements CloudflareDeviceService {
                     .collect(Collectors.toList());
 
         } catch (JsonProcessingException e) {
-            logger.error("Error parsing Cloudflare API response", e);
+            log.error("Error parsing Cloudflare API response", e);
             throw new CloudflareApiException("Error processing Cloudflare API response", e);
         }
     }
