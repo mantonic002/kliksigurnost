@@ -1,10 +1,12 @@
-package com.kliksigurnost.demo.service;
+package com.kliksigurnost.demo.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.kliksigurnost.demo.exception.CloudflareApiException;
 import com.kliksigurnost.demo.helper.MakeApiCall;
 import com.kliksigurnost.demo.model.CloudflareDevice;
 import com.kliksigurnost.demo.model.User;
+import com.kliksigurnost.demo.service.CloudflareDeviceService;
+import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

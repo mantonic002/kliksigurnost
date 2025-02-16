@@ -14,78 +14,52 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 public class CloudflareAccountServiceImpl implements CloudflareAccountService {
 
     private final RestTemplate restTemplate;
-
-    private final String baseUrl = "https://api.cloudflare.com/client/v4/accounts/";
-
     private final CloudflareAccountRepository repository;
-
     private static final Logger logger = LoggerFactory.getLogger(CloudflareAccountServiceImpl.class);
+    private static final String BASE_URL = "https://api.cloudflare.com/client/v4/accounts/";
 
     @Override
     public String createAccount(CloudflareAccount account) {
-        var cloudflareAccount = repository.findByAccountId(account.getAccountId());
-        // if acc doesn't exist create new
-        if(cloudflareAccount.isEmpty())
-        {
-            String appId = getWarpApplicationId(account);
-            if (appId == null)
-            {
-                appId = createEnrollmentApplication(account);
-            }
-            account.setEnrollmentApplicationId(appId);
+        return repository.findByAccountId(account.getAccountId())
+                .orElseGet(() -> createNewAccount(account))
+                .getAccountId();
+    }
 
-            String policyId = getEnrollmentPolicyId(account);
-            if (policyId == null)
-            {
-                policyId = createEnrollmentPolicy(account);
-            }
+    private CloudflareAccount createNewAccount(CloudflareAccount account) {
+        String appId = getOrCreateEnrollmentApplication(account);
+        account.setEnrollmentApplicationId(appId);
 
-            account.setEnrollmentPolicyId(policyId);
-            account.setUserNum(0);
-            repository.save(account);
-        }
-        return account.getAccountId();
+        String policyId = getOrCreateEnrollmentPolicy(account);
+        account.setEnrollmentPolicyId(policyId);
+        account.setUserNum(0);
+        return repository.save(account);
     }
 
     @Override
     public String getPolicies(CloudflareAccount account) {
-        String url = baseUrl + account.getAccountId() + "/gateway/rules";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", account.getAuthorizationToken());
-        headers.set("Content-Type", "application/json");
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
+        String url = BASE_URL + account.getAccountId() + "/gateway/rules";
+        HttpEntity<String> entity = new HttpEntity<>(createHeaders(account.getAuthorizationToken()));
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
             return response.getBody();
         } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException ("Error contacting Cloudflare API", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException ("Unexpected error occurred", e);
+            logger.error("Error fetching policies from Cloudflare API", e);
+            throw new RuntimeException("Error contacting Cloudflare API", e);
         }
     }
 
     @Override
     public String createEnrollmentApplication(CloudflareAccount account) {
-        String url = baseUrl + account.getAccountId() + "/access/apps";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", account.getAuthorizationToken());
-        headers.set("Content-Type", "application/json");
+        String url = BASE_URL + account.getAccountId() + "/access/apps";
+        HttpHeaders headers = createHeaders(account.getAuthorizationToken());
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("name", account.getEmail());
@@ -96,173 +70,112 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode responseBody = objectMapper.readTree(response.getBody());
-
+            JsonNode responseBody = new ObjectMapper().readTree(response.getBody());
             return responseBody.path("result").path("id").asText();
         } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException ("Error contacting Cloudflare API", e);
+            logger.error("Error creating enrollment application", e);
+            throw new RuntimeException("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
             logger.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException ("Error processing Cloudflare API response", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException ("Unexpected error occurred", e);
+            throw new RuntimeException("Error processing Cloudflare API response", e);
         }
     }
 
     @Override
     public ResponseEntity<String> getApplications(CloudflareAccount account) {
-        String url = baseUrl + account.getAccountId() + "/access/apps";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", account.getAuthorizationToken());
-        headers.set("Content-Type", "application/json");
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
+        String url = BASE_URL + account.getAccountId() + "/access/apps";
+        HttpEntity<String> entity = new HttpEntity<>(createHeaders(account.getAuthorizationToken()));
 
         try {
             return restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
         } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException ("Error contacting Cloudflare API", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException ("Unexpected error occurred", e);
+            logger.error("Error fetching applications from Cloudflare API", e);
+            throw new RuntimeException("Error contacting Cloudflare API", e);
         }
     }
 
     @Override
     public String createEnrollmentPolicy(CloudflareAccount account) {
-        String url = baseUrl + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies";
+        String url = BASE_URL + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies";
+        HttpHeaders headers = createHeaders(account.getAuthorizationToken());
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", account.getAuthorizationToken());
-        headers.set("Content-Type", "application/json");
-
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("name", "Allow");
-        requestBody.put("decision", "allow");
-
-        List<Map<String, Object>> includeList = new ArrayList<>();
-        Map<String, Object> emailFilter = new HashMap<>();
-        Map<String, Object> emailObj = new HashMap<>();
-        emailObj.put("email", account.getEmail());
-        emailFilter.put("email", emailObj);
-        includeList.add(emailFilter);
-        requestBody.put("include", includeList);
+        Map<String, Object> requestBody = buildPolicyRequestBody(account.getEmail());
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode responseBody = objectMapper.readTree(response.getBody());
-
+            JsonNode responseBody = new ObjectMapper().readTree(response.getBody());
             return responseBody.path("result").path("id").asText();
         } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException ("Error contacting Cloudflare API", e);
+            logger.error("Error creating enrollment policy", e);
+            throw new RuntimeException("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
             logger.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException ("Error processing Cloudflare API response", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException ("Unexpected error occurred", e);
+            throw new RuntimeException("Error processing Cloudflare API response", e);
         }
     }
 
     @Override
     public String updateEnrollmentPolicyAddEmail(String accountId, String email) {
-        var acc = repository.findByAccountId(accountId);
-        if (acc.isEmpty()) {
-            return null;
-        }
-        CloudflareAccount account = acc.get();
-        String url = baseUrl + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies/" + account.getEnrollmentPolicyId();
+        return repository.findByAccountId(accountId)
+                .map(account -> updatePolicyWithEmail(account, email))
+                .orElse(null);
+    }
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", account.getAuthorizationToken());
-        headers.set("Content-Type", "application/json");
+    private String updatePolicyWithEmail(CloudflareAccount account, String email) {
+        String url = BASE_URL + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies/" + account.getEnrollmentPolicyId();
 
-        // Create the request body to update the policy by adding a new email
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("name", "Allow");
-        requestBody.put("decision", "allow");
-
-        // Include the existing email filter and add the new one
-        List<Map<String, Object>> includeList = getEnrollmentPolicyEmails(account);
-
-        // Retrieve existing filters from the policy (if needed) or initialize as empty
-        Map<String, Object> emailFilter = new HashMap<>();
-        Map<String, Object> emailObj = new HashMap<>();
-        emailObj.put("email", email);
-        emailFilter.put("email", emailObj);
-        includeList.add(emailFilter);
-
-        // Add the new include list to the request body
-        requestBody.put("include", includeList);
+        HttpHeaders headers = createHeaders(account.getAuthorizationToken());
+        Map<String, Object> requestBody = buildPolicyRequestBody(email);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
-            // Send the PUT request to update the policy
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, entity, String.class);
-
-            // Return the response body if the update was successful
             return response.getBody();
         } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException ("Error contacting Cloudflare API", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException ("Unexpected error occurred", e);
+            logger.error("Error updating Cloudflare policy", e);
+            throw new RuntimeException("Error updating Cloudflare policy", e);
         }
     }
 
+    private String getOrCreateEnrollmentApplication(CloudflareAccount account) {
+        return Optional.ofNullable(getWarpApplicationId(account))
+                .orElseGet(() -> createEnrollmentApplication(account));
+    }
 
-    public String getWarpApplicationId(CloudflareAccount account) {
+    private String getOrCreateEnrollmentPolicy(CloudflareAccount account) {
+        return Optional.ofNullable(getEnrollmentPolicyId(account))
+                .orElseGet(() -> createEnrollmentPolicy(account));
+    }
+
+    private String getWarpApplicationId(CloudflareAccount account) {
         try {
             ResponseEntity<String> response = getApplications(account);
-
             if (response.getStatusCode() == HttpStatus.OK) {
-                ObjectMapper objectMapper = new ObjectMapper();
-                JsonNode responseBody = objectMapper.readTree(response.getBody());
-
-                // Iterate through the applications and check if a 'warp' type application exists
+                JsonNode responseBody = new ObjectMapper().readTree(response.getBody());
                 for (JsonNode app : responseBody.path("result")) {
                     if ("warp".equals(app.path("type").asText())) {
-                        // Return the ID if a 'warp' application is found
                         return app.path("id").asText();
                     }
                 }
             }
         } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException ("Error contacting Cloudflare API", e);
+            logger.error("Error fetching applications from Cloudflare API", e);
+            throw new RuntimeException("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
             logger.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException ("Error processing Cloudflare API response", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException ("Unexpected error occurred", e);
+            throw new RuntimeException("Error processing Cloudflare API response", e);
         }
-
-        // Return null if no 'warp' application is found
         return null;
     }
 
-    public String getEnrollmentPolicyId(CloudflareAccount account) {
+    private String getEnrollmentPolicyId(CloudflareAccount account) {
         try {
             ResponseEntity<String> response = getApplications(account);
-
             if (response.getStatusCode() == HttpStatus.OK) {
-                ObjectMapper objectMapper = new ObjectMapper();
-                JsonNode responseBody = objectMapper.readTree(response.getBody());
-
+                JsonNode responseBody = new ObjectMapper().readTree(response.getBody());
                 for (JsonNode app : responseBody.path("result")) {
                     if ("warp".equals(app.path("type").asText())) {
                         for (JsonNode policy : app.path("policies")) {
@@ -274,54 +187,59 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
                 }
             }
         } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException ("Error contacting Cloudflare API", e);
+            logger.error("Error fetching applications from Cloudflare API", e);
+            throw new RuntimeException("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
             logger.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException ("Error processing Cloudflare API response", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException ("Unexpected error occurred", e);
+            throw new RuntimeException("Error processing Cloudflare API response", e);
         }
         return null;
     }
 
-    public List<Map<String, Object>> getEnrollmentPolicyEmails(CloudflareAccount account) {
-        String url = baseUrl + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies/" + account.getEnrollmentPolicyId();
+    private List<Map<String, Object>> getEnrollmentPolicyEmails(CloudflareAccount account) {
+        String url = BASE_URL + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies/" + account.getEnrollmentPolicyId();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", account.getAuthorizationToken());
-        headers.set("Content-Type", "application/json");
-
-        // Retrieve the current list of filters (if any)
+        HttpHeaders headers = createHeaders(account.getAuthorizationToken());
         List<Map<String, Object>> includeList = new ArrayList<>();
 
-        // Fetch the existing policy to get its current include list
         try {
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), String.class);
             if (response.getStatusCode() == HttpStatus.OK) {
-                ObjectMapper objectMapper = new ObjectMapper();
-                JsonNode responseBody = objectMapper.readTree(response.getBody());
-
-                // Retrieve existing "include" filters from the policy
+                JsonNode responseBody = new ObjectMapper().readTree(response.getBody());
                 JsonNode existingInclude = responseBody.path("result").path("include");
                 for (JsonNode include : existingInclude) {
-                    includeList.add(objectMapper.convertValue(include, Map.class));
+                    includeList.add(new ObjectMapper().convertValue(include, Map.class));
                 }
                 return includeList;
             }
             return null;
         } catch (RestClientException e) {
-            logger.error("Error making REST call to Cloudflare API", e);
-            throw new RuntimeException ("Error contacting Cloudflare API", e);
+            logger.error("Error fetching policy emails from Cloudflare API", e);
+            throw new RuntimeException("Error contacting Cloudflare API", e);
         } catch (JsonProcessingException e) {
             logger.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException ("Error processing Cloudflare API response", e);
-        } catch (Exception e) {
-            logger.error("Unexpected error occurred", e);
-            throw new RuntimeException ("Unexpected error occurred", e);
+            throw new RuntimeException("Error processing Cloudflare API response", e);
         }
     }
 
+    private Map<String, Object> buildPolicyRequestBody(String email) {
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("name", "Allow");
+        requestBody.put("decision", "allow");
 
+        List<Map<String, Object>> includeList = new ArrayList<>();
+        Map<String, Object> emailFilter = new HashMap<>();
+        emailFilter.put("email", Map.of("email", email));
+        includeList.add(emailFilter);
+
+        requestBody.put("include", includeList);
+        return requestBody;
+    }
+
+    private HttpHeaders createHeaders(String authToken) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", authToken);
+        headers.set("Content-Type", "application/json");
+        return headers;
+    }
 }
