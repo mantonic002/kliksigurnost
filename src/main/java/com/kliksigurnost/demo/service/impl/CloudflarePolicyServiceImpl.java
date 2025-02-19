@@ -292,6 +292,8 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
 
         String trafficString = trafficBuilder.toString();
         log.debug("Generated allow-all traffic string: {}", trafficString);
+
+        if (trafficString.isEmpty()) return "";
         return "not(" + trafficString + ")";
     }
 

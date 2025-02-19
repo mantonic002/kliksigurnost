@@ -14,4 +14,15 @@ public interface CloudflareLogService {
             int pageSize,
             String direction
     );
+
+    List<CloudflareLog> getLogsForAccount(
+            String accountId,
+            String startDateTime,
+            String endDateTime,
+            List<String> orderBy,
+            String lastDateTime,
+            String lastPolicyId,
+            int pageSize,
+            String direction
+    );
 }
