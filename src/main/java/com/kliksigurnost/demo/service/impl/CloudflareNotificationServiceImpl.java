@@ -1,10 +1,9 @@
 package com.kliksigurnost.demo.service.impl;
 
-import com.kliksigurnost.demo.model.CloudflareAccount;
-import com.kliksigurnost.demo.model.CloudflareLog;
-import com.kliksigurnost.demo.model.CloudflarePolicy;
+import com.kliksigurnost.demo.model.*;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
+import com.kliksigurnost.demo.repository.NotificationRepository;
 import com.kliksigurnost.demo.service.CloudflareLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +25,8 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
 
     private final CloudflareLogService cloudflareLogService;
     private final CloudflarePolicyRepository policyRepository;
+    private final NotificationRepository notificationRepository;
     private final CloudflareAccountRepository accRepository;
-    private final SimpMessagingTemplate messagingTemplate;
 
     @Override
     @Scheduled(fixedRate = 300000)
@@ -36,9 +35,8 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
 
         // Calculate start and end time for the last 5 minutes
         Instant endTime = Instant.now();
-        Instant startTime = endTime.minus(5, ChronoUnit.DAYS);
+        Instant startTime = endTime.minus(5, ChronoUnit.MINUTES);
 
-        // Retrieve the list of accounts (this should be implemented)
         List<String> accountIds = getAllAccountIds();
 
         for (String accountId : accountIds) {
@@ -50,7 +48,7 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
                     startTime.toString(),
                     endTime.toString(),
                     List.of("datetime_DESC"),
-                    accountId, // Provide the account ID
+                    accountId,
                     null,
                     1000,
                     "next"
@@ -58,22 +56,26 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
 
             // Process logs for the current account
             logs.forEach(clog -> {
-                if (clog.getResolverDecision() == 9) { // Check if resolverDecision is 9
+                if (clog.getResolverDecision() == 9) {
                     CloudflarePolicy policy = policyRepository.findById(clog.getPolicyId())
                             .orElse(null);
 
                     if (policy != null) {
-                        // Notify the user associated with the policy
+                        User user = policy.getUser();
                         String notificationMessage = String.format(
                                 "Blocked content accessed under policy %s: %s",
                                 policy.getName(),
                                 clog.getQueryName()
                         );
 
-                        // Send notification via WebSocket
-                        log.info("Sending notification to /queue/notifications: {}", notificationMessage);
-                        messagingTemplate.convertAndSend("/queue/notifications", notificationMessage);
+                        Notification notification = Notification.builder()
+                                .isSeen(false)
+                                .message(notificationMessage)
+                                .user(user)
+                                .timestamp(Instant.parse(clog.getDatetime())).build();
 
+                        log.info("Saving notification: {}", notificationMessage);
+                        notificationRepository.save(notification);
                     }
                 }
             });
