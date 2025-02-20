@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kliksigurnost.demo.exception.CloudflareApiException;
 import com.kliksigurnost.demo.helper.MakeApiCall;
+import com.kliksigurnost.demo.model.CloudflareAccount;
 import com.kliksigurnost.demo.model.CloudflareLog;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
 import com.kliksigurnost.demo.model.User;
+import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
 import com.kliksigurnost.demo.service.CloudflareLogService;
 import com.kliksigurnost.demo.service.UserService;
@@ -32,6 +34,7 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
 
     private final CloudflarePolicyRepository policyRepository;
     private final UserService userService;
+    private final CloudflareAccountRepository accountRepository;
 
     @Override
     public List<CloudflareLog> getLogsForUser(
@@ -158,4 +161,111 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
 
         return variables;
     }
+
+
+    @Override
+    public List<CloudflareLog> getLogsForAccount(
+            String accountId,
+            String startDateTime,
+            String endDateTime,
+            List<String> orderBy,
+            String lastDateTime,
+            String lastPolicyId,
+            int pageSize,
+            String direction
+    ) {
+        String url = makeApiCall.buildUrl(GRAPHQL_ENDPOINT, accountId);
+        String query = buildGraphQLQueryForAccount();
+        Map<String, Object> variables = buildGraphQLVariablesForAccount(
+                accountId, startDateTime, endDateTime,
+                orderBy, lastDateTime, lastPolicyId, pageSize, direction
+        );
+
+        CloudflareAccount acc = accountRepository.findById(accountId).orElseThrow();
+        HttpHeaders headers = makeApiCall.createHeaders(acc.getAuthorizationToken());
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(Map.of("query", query, "variables", variables), headers);
+
+        try {
+            ResponseEntity<String> response = makeApiCall.makeApiCall(url, HttpMethod.POST, entity);
+            JsonNode responseBody = makeApiCall.parseResponse(response.getBody());
+
+            JsonNode logs = responseBody.path("data").path("viewer").path("accounts").get(0)
+                    .path("gatewayResolverQueriesAdaptiveGroups");
+
+            if (logs == null || logs.isMissingNode()) {
+                log.error("No logs found for the given parameters.");
+                return Collections.emptyList();
+            }
+
+            return mapLogsToCloudflareLogs(logs);
+        } catch (JsonProcessingException e) {
+            log.error("Error parsing Cloudflare API response", e);
+            throw new CloudflareApiException("Error processing Cloudflare API response", e);
+        }
+    }
+
+    private String buildGraphQLQueryForAccount() {
+        return """
+                query GetRecentQueries(
+                  $accountId: string!,
+                  $datetime_gt: Time!,
+                  $datetime_lt: Time,
+                  $limit: uint64!,
+                  $resolverDecision: uint64!,
+                  $policyIdsIn: [string!],
+                  $orderBy: [string!],
+                  $datetime_geq: Time,
+                ) {
+                  viewer {
+                    accounts(filter: {accountTag: $accountId}) {
+                      gatewayResolverQueriesAdaptiveGroups(
+                        filter: {
+                          datetime_gt: $datetime_gt,
+                          datetime_lt: $datetime_lt,
+                          policyId_in: $policyIdsIn,
+                          datetime_geq: $datetime_geq,
+                          resolverDecision : $resolverDecision,
+                        }
+                        limit: $limit
+                        orderBy: $orderBy
+                      ) {
+                        count
+                        dimensions {
+                          categoryNames
+                          datetime
+                          matchedApplicationName
+                          policyId
+                          policyName
+                          queryName
+                          resolverDecision
+                        }
+                      }
+                    }
+                  }
+                }""";
+    }
+
+
+    private Map<String, Object> buildGraphQLVariablesForAccount(
+            String accountId, String start, String end,
+            List<String> orderBy,
+            String lastDateTime, String lastPolicyId,
+            int limit, String direction
+    ) {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("accountId", accountId);
+        variables.put("datetime_gt", start);
+        variables.put("datetime_lt", end);
+        variables.put("limit", limit);
+        variables.put("orderBy", orderBy);
+        variables.put("resolverDecision", 9);
+
+        // Add pagination filters for next page
+        if ("next".equals(direction) && lastDateTime != null && lastPolicyId != null) {
+            variables.put("datetime_lt", lastDateTime);
+        }
+
+        return variables;
+    }
+
 }
