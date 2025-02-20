@@ -1,22 +1,24 @@
 package com.kliksigurnost.demo.service.impl;
 
+import com.kliksigurnost.demo.exception.NotificationNotFoundException;
+import com.kliksigurnost.demo.exception.UnauthorizedAccessException;
 import com.kliksigurnost.demo.model.*;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
 import com.kliksigurnost.demo.repository.NotificationRepository;
 import com.kliksigurnost.demo.service.CloudflareLogService;
+import com.kliksigurnost.demo.service.CloudflareNotificationService;
+import com.kliksigurnost.demo.service.UserService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import com.kliksigurnost.demo.service.CloudflareNotificationService;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-
 
 @Slf4j
 @Service
@@ -24,6 +26,7 @@ import java.util.List;
 public class CloudflareNotificationServiceImpl implements CloudflareNotificationService {
 
     private final CloudflareLogService cloudflareLogService;
+    private final UserService userService;
     private final CloudflarePolicyRepository policyRepository;
     private final NotificationRepository notificationRepository;
     private final CloudflareAccountRepository accRepository;
@@ -33,7 +36,6 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
     public void checkBlockedContent() {
         log.info("Checking for blocked content...");
 
-        // Calculate start and end time for the last 5 minutes
         Instant endTime = Instant.now();
         Instant startTime = endTime.minus(5, ChronoUnit.MINUTES);
 
@@ -42,7 +44,6 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
         for (String accountId : accountIds) {
             log.info("Fetching logs for account: {}", accountId);
 
-            // Fetch logs for the current account
             List<CloudflareLog> logs = cloudflareLogService.getLogsForAccount(
                     accountId,
                     startTime.toString(),
@@ -54,7 +55,6 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
                     "next"
             );
 
-            // Process logs for the current account
             logs.forEach(clog -> {
                 if (clog.getResolverDecision() == 9) {
                     CloudflarePolicy policy = policyRepository.findById(clog.getPolicyId())
@@ -83,11 +83,55 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
     }
 
     private List<String> getAllAccountIds() {
-        List<CloudflareAccount> accounts =  accRepository.findAll();
-        List<String> accIds =  new ArrayList<>();
+        List<CloudflareAccount> accounts = accRepository.findAll();
+        List<String> accIds = new ArrayList<>();
         for (CloudflareAccount acc : accounts) {
             accIds.add(acc.getAccountId());
         }
         return accIds;
+    }
+
+    @Override
+    public List<Notification> getNotificationsByUser() {
+        return notificationRepository.findByUser(userService.getCurrentUser());
+    }
+
+    @Override
+    @Transactional
+    public List<Notification> getUnseenNotificationsByUser() {
+        List<Notification> notifications = notificationRepository.findByUserAndIsSeen(userService.getCurrentUser(), false);
+        List<Integer> notificationIds = new ArrayList<>();
+        notifications.forEach(notification -> {
+            notificationIds.add(notification.getNotificationId());
+        });
+        markNotificationsAsSeen(notificationIds);
+        return notifications;
+    }
+
+    @Override
+    @Transactional
+    public void markNotificationsAsSeen(List<Integer> notificationIds) {
+        User currentUser = userService.getCurrentUser();
+        List<Notification> notifications = notificationRepository.findAllById(notificationIds);
+
+        notifications.forEach(notification -> {
+            if (!notification.getUser().equals(currentUser)) {
+                throw new UnauthorizedAccessException("Unauthorized to mark this notification as seen");
+            }
+        });
+
+        notificationRepository.markNotificationsAsSeen(notificationIds);
+    }
+
+    @Override
+    public void deleteNotification(Integer notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new NotificationNotFoundException("Notification not found"));
+
+        if (!notification.getUser().equals(userService.getCurrentUser())) {
+            throw new UnauthorizedAccessException("Unauthorized to delete this notification");
+        }
+
+        notificationRepository.delete(notification);
     }
 }
