@@ -14,6 +14,8 @@ public interface NotificationRepository  extends JpaRepository<Notification, Int
 
     List<Notification> findByUserAndIsSeen(User user, Boolean isSeen);
 
+    Integer countByUserAndIsSeen(User user, Boolean isSeen);
+
     @Modifying
     @Query("UPDATE Notification n SET n.isSeen = true WHERE n.notificationId IN :notificationIds")
     void markNotificationsAsSeen(@Param("notificationIds") List<Integer> notificationIds);

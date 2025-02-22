@@ -11,6 +11,8 @@ public interface CloudflareNotificationService {
 
     List<Notification> getUnseenNotificationsByUser();
 
+    Integer getUnseenNotificationCountByUser();
+
     void markNotificationsAsSeen(List<Integer> notificationIds);
 
     void deleteNotification(Integer id);
