@@ -32,6 +32,12 @@ public class NotificationController {
         return ResponseEntity.ok(cloudflareNotificationService.getUnseenNotificationsByUser());
     }
 
+    @GetMapping("/unseenCount")
+    public ResponseEntity<Integer> getUnseenNotificationCount() {
+        log.info("Fetching unseen notification count for the current user");
+        return ResponseEntity.ok(cloudflareNotificationService.getUnseenNotificationCountByUser());
+    }
+
     @DeleteMapping("/{notificationId}")
     public ResponseEntity<String> deleteNotification(@PathVariable Integer notificationId) {
         log.info("Deleting notification with ID: {}", notificationId);

@@ -109,6 +109,11 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
     }
 
     @Override
+    public Integer getUnseenNotificationCountByUser() {
+        return notificationRepository.countByUserAndIsSeen(userService.getCurrentUser(), false);
+    }
+
+    @Override
     @Transactional
     public void markNotificationsAsSeen(List<Integer> notificationIds) {
         User currentUser = userService.getCurrentUser();
