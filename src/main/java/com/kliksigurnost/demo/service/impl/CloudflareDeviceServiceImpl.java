@@ -43,13 +43,20 @@ public class CloudflareDeviceServiceImpl implements CloudflareDeviceService {
 
             List<Map<String, Object>> devices = (List<Map<String, Object>>) responseMap.get("result");
 
-            return devices.stream()
+            List<CloudflareDevice> devicesList =  devices.stream()
                     .filter(device -> {
                         Map<String, Object> userInfo = (Map<String, Object>) device.get("user");
                         return userInfo != null && userInfo.get("email").equals(user.getEmail());
                     })
                     .map(this::mapToCloudflareDevice)
                     .collect(Collectors.toList());
+
+            if (!user.getIsSetUp() && !user.getPolicies().isEmpty() && !devicesList.isEmpty()) {
+                user.setIsSetUp(true);
+                userService.updateUser(user);
+            }
+
+            return devicesList;
 
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
