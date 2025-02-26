@@ -4,14 +4,12 @@ import com.kliksigurnost.demo.config.JwtService;
 import com.kliksigurnost.demo.controller.auth.AuthenticationRequest;
 import com.kliksigurnost.demo.controller.auth.AuthenticationResponse;
 import com.kliksigurnost.demo.controller.auth.RegisterRequest;
-import com.kliksigurnost.demo.model.AuthProvider;
-import com.kliksigurnost.demo.model.CloudflareAccount;
-import com.kliksigurnost.demo.model.Role;
-import com.kliksigurnost.demo.model.User;
+import com.kliksigurnost.demo.model.*;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.repository.UserRepository;
 import com.kliksigurnost.demo.service.AuthenticationService;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
+import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -32,6 +30,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final AuthenticationManager authenticationManager;
     private final CloudflareAccountRepository cloudflareAccountRepository;
     private final CloudflareAccountService cloudflareService;
+    private final CloudflarePolicyService cloudflarePolicyService;
 
     @Override
     public AuthenticationResponse register(RegisterRequest request) {
@@ -49,6 +48,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         userRepository.save(user);
 
         updateCloudflareAccount(cloudflareAccount, request.getEmail());
+
+        String defaultTrafficString = "any(dns.content_category[*] in {2 67 125 133 8 99})"; //adult themes and gambling
+        CloudflarePolicy policy = CloudflarePolicy.builder()
+                .action("block")
+                .schedule(null)
+                .traffic(defaultTrafficString)
+                .build();
+        cloudflarePolicyService.createPolicy(policy, user);
 
         String jwtToken = jwtService.generateToken(user);
         return AuthenticationResponse.builder().token(jwtToken).build();

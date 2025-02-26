@@ -11,6 +11,7 @@ import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
 import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import com.kliksigurnost.demo.service.UserService;
+import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -35,7 +36,11 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
 
     @Override
     public String createPolicy(CloudflarePolicy policy) {
-        User user = userService.getCurrentUser();
+        return createPolicy(policy, userService.getCurrentUser());
+    }
+
+    @Override
+    public String createPolicy(CloudflarePolicy policy, User user) {
         policy.setUser(user);
 
         var account = user.getCloudflareAccount();
@@ -162,7 +167,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
         requestBody.put("action", policy.getAction());
         requestBody.put("name", policy.getName());
         requestBody.put("enabled", true);
-        requestBody.put("identity", "identity.email == \"" + userService.getCurrentUser().getEmail() + "\"");
+        requestBody.put("identity", "identity.email == \"" + policy.getUser().getEmail() + "\"");
         requestBody.put("traffic", policy.getTraffic());
         requestBody.put("schedule", policy.getSchedule());
 
