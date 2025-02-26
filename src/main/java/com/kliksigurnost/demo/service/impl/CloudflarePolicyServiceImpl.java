@@ -11,7 +11,6 @@ import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.repository.CloudflarePolicyRepository;
 import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import com.kliksigurnost.demo.service.UserService;
-import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
