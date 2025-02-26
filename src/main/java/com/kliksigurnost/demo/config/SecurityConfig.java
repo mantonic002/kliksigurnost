@@ -1,5 +1,6 @@
 package com.kliksigurnost.demo.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -37,6 +38,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests((authorize) -> authorize
                         .requestMatchers("/api/auth/**", "/api/policies/setupAccount").permitAll()
                         .anyRequest().authenticated())
+                .exceptionHandling(exceptionHandling -> exceptionHandling
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            // Return 401 Unauthorized for unauthenticated requests
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.getWriter().write("Unauthorized");
+                        }))
                 .oauth2Login(oauth2 -> oauth2
                         .loginPage("/api/auth/authenticate/google")
                         .defaultSuccessUrl("/api/auth/authenticationSuccess")

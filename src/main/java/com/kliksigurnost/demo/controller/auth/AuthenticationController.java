@@ -1,5 +1,6 @@
 package com.kliksigurnost.demo.controller.auth;
 
+import com.kliksigurnost.demo.config.JwtService;
 import com.kliksigurnost.demo.service.AuthenticationService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,68 +23,158 @@ import java.net.URI;
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
+    private final JwtService jwtService;
+    private final UserDetailsService userDetailsService;
     @Value("${frontend.uri}")
     private String frontendUri;
 
     @PostMapping("/register")
     public ResponseEntity<AuthenticationResponse> registerUser(@RequestBody RegisterRequest request) {
         log.info("Registering user with email: {}", request.getEmail());
-        AuthenticationResponse response = authenticationService.register(request);
+        try {
+            AuthenticationResponse response = authenticationService.register(request);
 
-        if (response.getError() != null) {
-            log.warn("Registration failed for email: {}", request.getEmail());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            if (response.getError() != null) {
+                log.warn("Registration failed for email: {}", request.getEmail());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
+
+            log.info("User registered successfully: {}", request.getEmail());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Registration error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    AuthenticationResponse.builder()
+                            .error("Registration failed due to an internal error")
+                            .build()
+            );
         }
-
-        log.info("User registered successfully: {}", request.getEmail());
-        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/authenticate")
     public ResponseEntity<AuthenticationResponse> authenticateUser(@RequestBody AuthenticationRequest request) {
-        log.info("Authenticating user with email: {}", request.getEmail());
-        AuthenticationResponse response = authenticationService.authenticate(request);
+        try {
+            log.info("Authenticating user with email: {}", request.getEmail());
+            AuthenticationResponse response = authenticationService.authenticate(request);
 
-        if (response.getError() != null) {
-            log.warn("Authentication failed for email: {}", request.getEmail());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            if (response.getError() != null) {
+                log.warn("Authentication failed for email: {}", request.getEmail());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
+
+            log.info("User authenticated successfully: {}", request.getEmail());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Authentication error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                    AuthenticationResponse.builder()
+                            .error("Authentication failed")
+                            .build()
+            );
         }
-
-        log.info("User authenticated successfully: {}", request.getEmail());
-        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/authenticate/google")
     public ResponseEntity<String> initiateGoogleAuthentication(HttpServletResponse response) throws IOException {
         log.info("Initiating Google OAuth2 authentication");
-        response.sendRedirect("/oauth2/authorization/google");
-        return ResponseEntity.ok("Redirecting to Google for authentication");
+        try {
+            response.sendRedirect("/oauth2/authorization/google");
+            return ResponseEntity.ok("Redirecting to Google for authentication");
+        } catch (Exception e) {
+            log.error("Google OAuth2 initiation error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to initiate Google OAuth2");
+        }
     }
 
     @GetMapping("/authenticationSuccess")
     public ResponseEntity<Void> handleGoogleAuthenticationSuccess(OAuth2AuthenticationToken oAuth2AuthenticationToken) {
         log.info("Handling Google OAuth2 authentication success");
-        AuthenticationResponse response = authenticationService.authenticateRegisterOAuth2Google(oAuth2AuthenticationToken);
+        try {
+            AuthenticationResponse response = authenticationService.authenticateRegisterOAuth2Google(oAuth2AuthenticationToken);
 
-        if (response.getError() == null) {
-            String redirectUrl = frontendUri + "/home?token=" + response.getToken();
-            log.info("Redirecting to frontend: {}", redirectUrl);
+            if (response.getError() == null) {
+                // Redirect to frontend with both access and refresh tokens
+                String redirectUrl = frontendUri + "/home?token=" + response.getToken() + "&refreshToken=" + response.getRefreshToken();
+                log.info("Redirecting to frontend: {}", redirectUrl);
+                return ResponseEntity.status(HttpStatus.FOUND)
+                        .location(URI.create(redirectUrl))
+                        .build();
+            }
+
+            log.warn("Google OAuth2 authentication failed, redirecting to login");
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(redirectUrl))
+                    .location(URI.create(frontendUri + "/login"))
                     .build();
+        } catch (Exception e) {
+            log.error("Google OAuth2 success handling error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-
-        log.warn("Google OAuth2 authentication failed, redirecting to login");
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(frontendUri + "/login"))
-                .build();
     }
 
     @GetMapping("/authenticationFailure")
     public ResponseEntity<Void> handleGoogleAuthenticationFailure() {
         log.warn("Google OAuth2 authentication failed, redirecting to login");
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(frontendUri + "/login"))
-                .build();
+        try {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(frontendUri + "/login"))
+                    .build();
+        } catch (Exception e) {
+            log.error("Google OAuth2 failure handling error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthenticationResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
+        try {
+            String refreshToken = request.getRefreshToken();
+            if (refreshToken == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                        AuthenticationResponse.builder()
+                                .error("Invalid refresh token")
+                                .build()
+                );
+            }
+
+            // Extract email from the refresh token
+            String email = jwtService.extractUsername(refreshToken);
+            if (email == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                        AuthenticationResponse.builder()
+                                .error("Invalid refresh token")
+                                .build()
+                );
+            }
+
+            // Load UserDetails from the database
+            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+            // Validate the refresh token with UserDetails
+            if (!jwtService.isTokenValid(refreshToken, userDetails)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                        AuthenticationResponse.builder()
+                                .error("Invalid refresh token")
+                                .build()
+                );
+            }
+
+            // Generate new access and refresh tokens
+            String newAccessToken = jwtService.generateToken(userDetails);
+            String newRefreshToken = jwtService.generateRefreshToken(userDetails);
+
+            return ResponseEntity.ok(
+                    AuthenticationResponse.builder()
+                            .token(newAccessToken)
+                            .refreshToken(newRefreshToken)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Refresh token error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                    AuthenticationResponse.builder()
+                            .error("Failed to refresh token")
+                            .build()
+            );
+        }
     }
 }

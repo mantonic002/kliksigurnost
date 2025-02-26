@@ -49,16 +49,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         updateCloudflareAccount(cloudflareAccount, request.getEmail());
 
-        String defaultTrafficString = "any(dns.content_category[*] in {2 67 125 133 8 99})"; //adult themes and gambling
-        CloudflarePolicy policy = CloudflarePolicy.builder()
-                .action("block")
-                .schedule(null)
-                .traffic(defaultTrafficString)
-                .build();
-        cloudflarePolicyService.createPolicy(policy, user);
+        createDefaultPolicy(user);
 
-        String jwtToken = jwtService.generateToken(user);
-        return AuthenticationResponse.builder().token(jwtToken).build();
+        return buildJwtResponse(user);
     }
 
     @Override
@@ -67,8 +60,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
         User user = userRepository.findByEmail(request.getEmail()).orElseThrow();
-        String jwtToken = jwtService.generateToken(user);
-        return AuthenticationResponse.builder().token(jwtToken).build();
+        return buildJwtResponse(user);
     }
 
     @Override
@@ -91,6 +83,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         userRepository.save(user);
 
         updateCloudflareAccount(cloudflareAccount, email);
+        createDefaultPolicy(user);
 
         return buildJwtResponse(user);
     }
@@ -128,6 +121,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private AuthenticationResponse buildJwtResponse(User user) {
         String jwtToken = jwtService.generateToken(user);
-        return AuthenticationResponse.builder().token(jwtToken).build();
+        String refreshToken = jwtService.generateRefreshToken(user); // Generate refresh token
+        return AuthenticationResponse.builder()
+                .token(jwtToken)
+                .refreshToken(refreshToken)
+                .build();
+    }
+
+    private void createDefaultPolicy(User user) {
+        String defaultTrafficString = "any(dns.content_category[*] in {2 67 125 133 8 99})"; //adult themes and gambling
+        CloudflarePolicy policy = CloudflarePolicy.builder()
+                .action("block")
+                .schedule(null)
+                .traffic(defaultTrafficString)
+                .build();
+        cloudflarePolicyService.createPolicy(policy, user);
     }
 }
