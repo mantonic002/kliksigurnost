@@ -2,6 +2,7 @@ package com.kliksigurnost.demo.controller.auth;
 
 import com.kliksigurnost.demo.config.JwtService;
 import com.kliksigurnost.demo.service.AuthenticationService;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -87,24 +88,29 @@ public class AuthenticationController {
     }
 
     @GetMapping("/authenticationSuccess")
-    public ResponseEntity<Void> handleGoogleAuthenticationSuccess(OAuth2AuthenticationToken oAuth2AuthenticationToken) {
+    public ResponseEntity<Void> handleGoogleAuthenticationSuccess(OAuth2AuthenticationToken oAuth2AuthenticationToken, HttpServletResponse response) {
         log.info("Handling Google OAuth2 authentication success");
         try {
-            AuthenticationResponse response = authenticationService.authenticateRegisterOAuth2Google(oAuth2AuthenticationToken);
+            AuthenticationResponse authResponse = authenticationService.authenticateRegisterOAuth2Google(oAuth2AuthenticationToken);
 
-            if (response.getError() == null) {
-                // Redirect to frontend with both access and refresh tokens
-                String redirectUrl = frontendUri + "/home?token=" + response.getToken() + "&refreshToken=" + response.getRefreshToken();
-                log.info("Redirecting to frontend: {}", redirectUrl);
-                return ResponseEntity.status(HttpStatus.FOUND)
-                        .location(URI.create(redirectUrl))
-                        .build();
+            if (authResponse.getError() == null) {
+                // Store tokens in secure HTTP-only cookies
+                Cookie accessTokenCookie = new Cookie("access_token", authResponse.getToken());
+                accessTokenCookie.setPath("/");
+                response.addCookie(accessTokenCookie);
+
+                Cookie refreshTokenCookie = new Cookie("refresh_token", authResponse.getRefreshToken());
+                refreshTokenCookie.setPath("/");
+                response.addCookie(refreshTokenCookie);
+
+                // Redirect to the frontend without tokens in the URL
+                response.sendRedirect(frontendUri + "/oauth-success");
+                return ResponseEntity.status(HttpStatus.FOUND).build();
             }
 
             log.warn("Google OAuth2 authentication failed, redirecting to login");
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUri + "/login"))
-                    .build();
+            response.sendRedirect(frontendUri + "/login");
+            return ResponseEntity.status(HttpStatus.FOUND).build();
         } catch (Exception e) {
             log.error("Google OAuth2 success handling error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
