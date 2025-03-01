@@ -1,6 +1,7 @@
 package com.kliksigurnost.demo.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,4 +25,9 @@ public class Notification {
     String message;
     Boolean isSeen;
     Instant timestamp;
+
+    @Enumerated(EnumType.STRING)
+    private NotificationType type;
+    private String deviceId;
 }
+

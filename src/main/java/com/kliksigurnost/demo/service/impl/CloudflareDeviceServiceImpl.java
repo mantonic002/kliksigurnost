@@ -6,6 +6,7 @@ import com.kliksigurnost.demo.helper.MakeApiCall;
 import com.kliksigurnost.demo.model.CloudflareDevice;
 import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.service.CloudflareDeviceService;
+import com.kliksigurnost.demo.service.CloudflareNotificationService;
 import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class CloudflareDeviceServiceImpl implements CloudflareDeviceService {
 
     private final MakeApiCall makeApiCall;
     private final UserService userService;
+    private final CloudflareNotificationService notificationService;
 
     @Override
     public List<CloudflareDevice> getDevicesByUser() {
@@ -55,6 +57,8 @@ public class CloudflareDeviceServiceImpl implements CloudflareDeviceService {
                 user.setIsSetUp(true);
                 userService.updateUser(user);
             }
+
+            notificationService.createNotificationForDevices(devicesList, user);
 
             return devicesList;
 
