@@ -72,6 +72,7 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
                                 .isSeen(false)
                                 .message(notificationMessage)
                                 .user(user)
+                                .type(NotificationType.LOG)
                                 .timestamp(Instant.parse(clog.getDatetime())).build();
 
                         log.info("Saving notification: {}", notificationMessage);
@@ -138,5 +139,26 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
         }
 
         notificationRepository.delete(notification);
+    }
+
+    @Override
+    public void createNotificationForDevices(List<CloudflareDevice> devicesList, User user) {
+        for (CloudflareDevice device : devicesList) {
+            // if device last seen is before 5 days ago create notification
+            if (Instant.parse(device.getLastSeenTime()).isBefore(Instant.now().minus(5, ChronoUnit.DAYS)) ) {
+
+                if (!notificationRepository.existsByDeviceIdAndIsSeen(device.getId(), false)) {
+                    Notification notification = Notification.builder()
+                            .isSeen(false)
+                            .message("Device " + device.getManufacturer() + "'s last seen date is more than 5 days ago")
+                            .user(user)
+                            .type(NotificationType.DEVICE)
+                            .deviceId(device.getId())
+                            .timestamp(Instant.now()).build();
+
+                    notificationRepository.save(notification);
+                }
+            }
+        }
     }
 }
