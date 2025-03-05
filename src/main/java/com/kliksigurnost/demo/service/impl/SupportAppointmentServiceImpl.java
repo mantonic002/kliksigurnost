@@ -39,11 +39,10 @@ public class SupportAppointmentServiceImpl implements SupportAppointmentService 
 
     @Override
     public List<LocalDateTime> getAvailableSlots(LocalDate date) {
-        // Define working hours (e.g., 9 AM to 5 PM)
+        // working hours (9 AM to 5 PM)
         LocalTime startTime = LocalTime.of(9, 0);
         LocalTime endTime = LocalTime.of(17, 0);
 
-        // Define slot duration (e.g., 30 minutes)
         int slotDurationMinutes = 30;
 
         // Get all appointments for the given date
@@ -67,6 +66,11 @@ public class SupportAppointmentServiceImpl implements SupportAppointmentService 
         return allSlots.stream()
                 .filter(slot -> !bookedSlots.contains(slot))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void deleteAppointment(Integer appointmentId) {
+        appointmentRepository.deleteById(appointmentId);
     }
 
     private boolean isSlotAvailable(LocalDateTime dateTime) {
