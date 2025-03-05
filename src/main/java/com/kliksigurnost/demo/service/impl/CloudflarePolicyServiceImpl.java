@@ -3,7 +3,7 @@ package com.kliksigurnost.demo.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.kliksigurnost.demo.exception.CloudflareApiException;
-import com.kliksigurnost.demo.exception.PolicyNotFoundException;
+import com.kliksigurnost.demo.exception.NotFoundException;
 import com.kliksigurnost.demo.exception.UnauthorizedAccessException;
 import com.kliksigurnost.demo.helper.MakeApiCall;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
@@ -76,7 +76,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
     public void deletePolicy(String policyId) {
         User user = userService.getCurrentUser();
         CloudflarePolicy policy = policyRepository.findById(policyId)
-                .orElseThrow(() -> new PolicyNotFoundException("Policy not found"));
+                .orElseThrow(() -> new NotFoundException("Policy not found"));
 
         if (!policy.getUser().equals(user)) {
             throw new UnauthorizedAccessException("Unauthorized to delete this policy");
@@ -111,7 +111,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
     public void updatePolicy(String policyId, CloudflarePolicy updatedPolicy) {
         User user = userService.getCurrentUser();
         CloudflarePolicy existingPolicy = policyRepository.findById(policyId)
-                .orElseThrow(() -> new PolicyNotFoundException("Policy not found"));
+                .orElseThrow(() -> new NotFoundException("Policy not found"));
 
         if (!existingPolicy.getUser().equals(user)) {
             throw new UnauthorizedAccessException("Unauthorized to update this policy");

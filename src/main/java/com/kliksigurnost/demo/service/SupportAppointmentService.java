@@ -12,4 +12,6 @@ public interface SupportAppointmentService {
     List<SupportAppointment> getAppointmentsForUser();
 
     List<LocalDateTime> getAvailableSlots(LocalDate date);
+
+    void deleteAppointment(Integer appointmentId);
 }

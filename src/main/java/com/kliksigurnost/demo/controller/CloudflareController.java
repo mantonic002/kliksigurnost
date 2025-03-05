@@ -1,7 +1,7 @@
 package com.kliksigurnost.demo.controller;
 
 import com.kliksigurnost.demo.exception.CloudflareApiException;
-import com.kliksigurnost.demo.exception.PolicyNotFoundException;
+import com.kliksigurnost.demo.exception.NotFoundException;
 import com.kliksigurnost.demo.exception.UnauthorizedAccessException;
 import com.kliksigurnost.demo.model.CloudflareAccount;
 import com.kliksigurnost.demo.model.CloudflareDevice;
@@ -54,7 +54,7 @@ public class CloudflareController {
         try {
             cloudflarePolicyService.deletePolicy(policyId);
             return ResponseEntity.ok("Policy deleted successfully");
-        } catch (PolicyNotFoundException e) {
+        } catch (NotFoundException e) {
             log.warn("Policy not found: {}", policyId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (UnauthorizedAccessException e) {
@@ -72,7 +72,7 @@ public class CloudflareController {
         try {
             cloudflarePolicyService.updatePolicy(policyId, updatedPolicy);
             return ResponseEntity.ok("Policy updated successfully");
-        } catch (PolicyNotFoundException e) {
+        } catch (NotFoundException e) {
             log.warn("Policy not found: {}", policyId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (UnauthorizedAccessException e) {
