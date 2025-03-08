@@ -90,7 +90,7 @@ public class AuthenticationController {
     }
 
     @GetMapping("/authenticate/google")
-    public ResponseEntity<String> initiateGoogleAuthentication(HttpServletResponse response) throws IOException {
+    public ResponseEntity<String> initiateGoogleAuthentication(HttpServletResponse response) {
         log.info("Initiating Google OAuth2 authentication");
         try {
             response.sendRedirect("/oauth2/authorization/google");

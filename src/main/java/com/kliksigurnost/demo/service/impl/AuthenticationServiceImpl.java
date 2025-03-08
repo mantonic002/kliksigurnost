@@ -57,7 +57,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         CloudflareAccount cloudflareAccount = cloudflareAccountOpt.get();
         User user = createUser(request, cloudflareAccount);
 
-        updateCloudflareAccount(cloudflareAccount, request.getEmail());
+        cloudflareService.updateEnrollmentPolicyAddEmail(cloudflareAccount.getAccountId(), request.getEmail());
+        cloudflareAccount.setUserNum(cloudflareAccount.getUserNum() + 1);
+        cloudflareAccountRepository.save(cloudflareAccount);
+
         User registeredUser = userRepository.save(user);
 
         ConfirmationToken token = createConfirmationToken(registeredUser);
@@ -85,6 +88,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     }
 
     @Override
+    @Transactional
     public AuthenticationResponse authenticateRegisterOAuth2Google(OAuth2AuthenticationToken authToken) {
         OAuth2User oAuth2User = authToken.getPrincipal();
         String email = oAuth2User.getAttribute("email");
@@ -101,9 +105,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         CloudflareAccount cloudflareAccount = cloudflareAccountOpt.get();
         User user = createOAuthUser(email, cloudflareAccount);
-        userRepository.save(user);
 
-        updateCloudflareAccount(cloudflareAccount, email);
+        cloudflareService.updateEnrollmentPolicyAddEmail(cloudflareAccount.getAccountId(), email);
+        cloudflareAccount.setUserNum(cloudflareAccount.getUserNum() + 1);
+        cloudflareAccountRepository.save(cloudflareAccount);
+
+        userRepository.save(user);
 
         createDefaultPolicy(user);
 
@@ -129,13 +136,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .cloudflareAccount(cloudflareAccount)
                 .isSetUp(false)
                 .build();
-    }
-
-    @Transactional
-    protected void updateCloudflareAccount(CloudflareAccount cloudflareAccount, String email) {
-        cloudflareService.updateEnrollmentPolicyAddEmail(cloudflareAccount.getAccountId(), email);
-        cloudflareAccount.setUserNum(cloudflareAccount.getUserNum() + 1);
-        cloudflareAccountRepository.save(cloudflareAccount);
     }
 
     private AuthenticationResponse buildErrorResponse(String errorMessage) {
