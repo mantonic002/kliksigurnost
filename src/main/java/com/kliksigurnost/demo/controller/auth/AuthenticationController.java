@@ -2,6 +2,7 @@ package com.kliksigurnost.demo.controller.auth;
 
 import com.kliksigurnost.demo.config.JwtService;
 import com.kliksigurnost.demo.service.AuthenticationService;
+import com.kliksigurnost.demo.service.ConfirmationTokenService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,14 +27,15 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final ConfirmationTokenService confirmationTokenService;
     @Value("${frontend.uri}")
     private String frontendUri;
 
     @PostMapping("/register")
-    public ResponseEntity<AuthenticationResponse> registerUser(@RequestBody RegisterRequest request) {
+    public ResponseEntity<RegisterResponse> registerUser(@RequestBody RegisterRequest request) {
         log.info("Registering user with email: {}", request.getEmail());
         try {
-            AuthenticationResponse response = authenticationService.register(request);
+            RegisterResponse response = authenticationService.register(request);
 
             if (response.getError() != null) {
                 log.warn("Registration failed for email: {}", request.getEmail());
@@ -45,10 +47,22 @@ public class AuthenticationController {
         } catch (Exception e) {
             log.error("Registration error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                    AuthenticationResponse.builder()
+                    RegisterResponse.builder()
                             .error("Registration failed due to an internal error")
                             .build()
             );
+        }
+    }
+
+    @GetMapping("/verify")
+    public ResponseEntity<Void> confirm(@RequestParam("token") String token) {
+        try {
+            confirmationTokenService.confirmToken(token);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .location(URI.create(frontendUri + "/login"))
+                    .build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 
@@ -76,7 +90,7 @@ public class AuthenticationController {
     }
 
     @GetMapping("/authenticate/google")
-    public ResponseEntity<String> initiateGoogleAuthentication(HttpServletResponse response) throws IOException {
+    public ResponseEntity<String> initiateGoogleAuthentication(HttpServletResponse response) {
         log.info("Initiating Google OAuth2 authentication");
         try {
             response.sendRedirect("/oauth2/authorization/google");

@@ -21,9 +21,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User updateUser(User user) {
-        if (getCurrentUser().getEmail().equals(user.getEmail())) {
-            return repository.save(user);
-        }
-        return null;
+        return repository.save(user);
     }
 }
