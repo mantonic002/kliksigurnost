@@ -12,7 +12,7 @@ public interface CloudflareLogService {
             String lastDateTime,
             String lastPolicyId,
             int pageSize,
-            String direction
+            int resolverDecision
     );
 
     List<CloudflareLog> getLogsForAccount(
@@ -23,6 +23,6 @@ public interface CloudflareLogService {
             String lastDateTime,
             String lastPolicyId,
             int pageSize,
-            String direction
+            int resolverDecision
     );
 }
