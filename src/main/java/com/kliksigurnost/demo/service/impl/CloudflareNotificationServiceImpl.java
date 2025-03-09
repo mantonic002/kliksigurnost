@@ -52,7 +52,7 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
                     accountId,
                     null,
                     1000,
-                    "next"
+                    9
             );
 
             logs.forEach(clog -> {

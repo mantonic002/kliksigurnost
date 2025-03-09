@@ -112,15 +112,14 @@ public class CloudflareController {
             @RequestParam String startDateTime,
             @RequestParam String endDateTime,
             @RequestParam(defaultValue = "datetime_DESC") List<String> orderBy,
-            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "25") int pageSize,
+            @RequestParam(defaultValue = "0") int resolverDecision, // 9 is blocked, 10 is allowed
             @RequestParam(required = false) String lastDateTime,
-            @RequestParam(required = false) String lastPolicyId,
-            @RequestParam(required = false) String direction) {
+            @RequestParam(required = false) String lastPolicyId) {
         log.info("Fetching logs for the current user");
         try {
             return ResponseEntity.ok(cloudflareLogService.getLogsForUser(
-                    startDateTime, endDateTime, orderBy, lastDateTime, lastPolicyId, pageSize, direction));
+                    startDateTime, endDateTime, orderBy, lastDateTime, lastPolicyId, pageSize, resolverDecision));
         } catch (CloudflareApiException e) {
             log.error("Failed to fetch logs: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
