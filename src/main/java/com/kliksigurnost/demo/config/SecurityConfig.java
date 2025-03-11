@@ -1,5 +1,8 @@
 package com.kliksigurnost.demo.config;
 
+import com.kliksigurnost.demo.config.oauth2.CustomOAuth2UserService;
+import com.kliksigurnost.demo.config.oauth2.OAuth2LoginFailureHandler;
+import com.kliksigurnost.demo.config.oauth2.OAuth2LoginSuccessHandler;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +30,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final AuthenticationProvider authenticationProvider;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+    private final OAuth2LoginFailureHandler oAuth2LoginFailureHandler;
 
     @Value("${frontend.uri}")
     private String frontendUri;
@@ -40,14 +46,14 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
-                            // Return 401 Unauthorized for unauthenticated requests
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.getWriter().write("Unauthorized");
                         }))
                 .oauth2Login(oauth2 -> oauth2
-                        .loginPage("/api/auth/authenticate/google")
-                        .defaultSuccessUrl("/api/auth/authenticationSuccess")
-                        .failureUrl("/api/auth/authenticationFailure"))
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService))
+                        .successHandler(oAuth2LoginSuccessHandler)
+                        .failureHandler(oAuth2LoginFailureHandler))
                 .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()));
