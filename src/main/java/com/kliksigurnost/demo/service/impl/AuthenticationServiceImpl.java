@@ -15,8 +15,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -57,9 +55,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         CloudflareAccount cloudflareAccount = cloudflareAccountOpt.get();
         User user = createUser(request, cloudflareAccount);
 
-        cloudflareService.updateEnrollmentPolicyAddEmail(cloudflareAccount.getAccountId(), request.getEmail());
-        cloudflareAccount.setUserNum(cloudflareAccount.getUserNum() + 1);
-        cloudflareAccountRepository.save(cloudflareAccount);
+        cloudflareService.updateEnrollmentPolicyAddEmail(cloudflareAccount, request.getEmail());
 
         User registeredUser = userRepository.save(user);
 
@@ -87,52 +83,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         return buildJwtResponse(user);
     }
 
-    @Override
-    @Transactional
-    public AuthenticationResponse authenticateRegisterOAuth2Google(OAuth2AuthenticationToken authToken) {
-        OAuth2User oAuth2User = authToken.getPrincipal();
-        String email = oAuth2User.getAttribute("email");
-
-        Optional<User> existingUser = userRepository.findByEmail(email);
-        if (existingUser.isPresent()) {
-            return buildJwtResponse(existingUser.get());
-        }
-
-        Optional<CloudflareAccount> cloudflareAccountOpt = cloudflareAccountRepository.findFirstByUserNumIsLessThan(50);
-        if (cloudflareAccountOpt.isEmpty()) {
-            return buildErrorResponse("No more slots, try again later");
-        }
-
-        CloudflareAccount cloudflareAccount = cloudflareAccountOpt.get();
-        User user = createOAuthUser(email, cloudflareAccount);
-
-        cloudflareService.updateEnrollmentPolicyAddEmail(cloudflareAccount.getAccountId(), email);
-        cloudflareAccount.setUserNum(cloudflareAccount.getUserNum() + 1);
-        cloudflareAccountRepository.save(cloudflareAccount);
-
-        userRepository.save(user);
-
-        createDefaultPolicy(user);
-
-        return buildJwtResponse(user);
-    }
-
     private User createUser(RegisterRequest request, CloudflareAccount cloudflareAccount) {
         return User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.USER)
                 .authProvider(AuthProvider.LOCAL)
-                .cloudflareAccount(cloudflareAccount)
-                .isSetUp(false)
-                .build();
-    }
-
-    private User createOAuthUser(String email, CloudflareAccount cloudflareAccount) {
-        return User.builder()
-                .email(email)
-                .role(Role.USER)
-                .authProvider(AuthProvider.GOOGLE)
                 .cloudflareAccount(cloudflareAccount)
                 .isSetUp(false)
                 .build();

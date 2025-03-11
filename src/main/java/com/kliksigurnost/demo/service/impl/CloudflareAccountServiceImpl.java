@@ -112,10 +112,11 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
     }
 
     @Override
-    public String updateEnrollmentPolicyAddEmail(String accountId, String email) {
-        return repository.findByAccountId(accountId)
-                .map(account -> updatePolicyWithEmail(account, email))
-                .orElse(null);
+    public String updateEnrollmentPolicyAddEmail(CloudflareAccount acc, String email) {
+                String ret = updatePolicyWithEmail(acc, email);
+                acc.setUserNum(acc.getUserNum() + 1);
+                repository.save(acc);
+                return ret;
     }
 
     private String updatePolicyWithEmail(CloudflareAccount account, String email) {

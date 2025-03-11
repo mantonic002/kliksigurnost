@@ -7,5 +7,5 @@ import org.springframework.http.ResponseEntity;
 public interface CloudflareAccountService {
     String createAccount(CloudflareAccount account);
 
-    String updateEnrollmentPolicyAddEmail(String accountId, String email);
+    String updateEnrollmentPolicyAddEmail(CloudflareAccount account, String email);
 }

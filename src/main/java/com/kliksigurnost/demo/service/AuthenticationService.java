@@ -10,6 +10,4 @@ public interface AuthenticationService {
     RegisterResponse register(RegisterRequest request);
 
     AuthenticationResponse authenticate(AuthenticationRequest request);
-
-    AuthenticationResponse authenticateRegisterOAuth2Google(OAuth2AuthenticationToken auth2AuthenticationToken);
     }
