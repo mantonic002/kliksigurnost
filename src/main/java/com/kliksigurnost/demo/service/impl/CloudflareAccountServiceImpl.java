@@ -41,19 +41,6 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
         return repository.save(account);
     }
 
-    public String getPolicies(CloudflareAccount account) {
-        String url = BASE_URL + account.getAccountId() + "/gateway/rules";
-        HttpEntity<String> entity = new HttpEntity<>(createHeaders(account.getAuthorizationToken()));
-
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
-            return response.getBody();
-        } catch (RestClientException e) {
-            log.error("Error fetching policies from Cloudflare API", e);
-            throw new RuntimeException("Error contacting Cloudflare API", e);
-        }
-    }
-
     public String createEnrollmentApplication(CloudflareAccount account) {
         String url = BASE_URL + account.getAccountId() + "/access/apps";
         HttpHeaders headers = createHeaders(account.getAuthorizationToken());

@@ -6,6 +6,7 @@ import com.kliksigurnost.demo.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 
 @Component
+@RequiredArgsConstructor
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     private final JwtService jwtService;
@@ -22,11 +24,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
 
     @Value("${frontend.uri}")
     private String frontendUri;
-
-    public OAuth2LoginSuccessHandler(JwtService jwtService, UserRepository userRepository, AuthenticationManager authenticationManager) {
-        this.jwtService = jwtService;
-        this.userRepository = userRepository;
-    }
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
