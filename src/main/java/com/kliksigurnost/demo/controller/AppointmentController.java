@@ -24,9 +24,13 @@ public class AppointmentController {
     private SupportAppointmentService appointmentService;
 
     @PostMapping
-    public ResponseEntity<SupportAppointment> createAppointment(@RequestBody SupportAppointment appointment) {
-        SupportAppointment savedAppointment = appointmentService.scheduleAppointment(appointment);
-        return ResponseEntity.ok(savedAppointment);
+    public ResponseEntity<?> createAppointment(@RequestBody SupportAppointment appointment) {
+        try {
+            SupportAppointment savedAppointment = appointmentService.scheduleAppointment(appointment);
+            return ResponseEntity.ok(savedAppointment);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
     }
 
     @GetMapping

@@ -1,6 +1,7 @@
 package com.kliksigurnost.demo.service.impl;
 
 import com.kliksigurnost.demo.model.SupportAppointment;
+import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.repository.SupportAppointmentRepository;
 import com.kliksigurnost.demo.service.SupportAppointmentService;
 import com.kliksigurnost.demo.service.UserService;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,13 +25,17 @@ public class SupportAppointmentServiceImpl implements SupportAppointmentService 
     private final UserService userService;
 
     @Override
-    public SupportAppointment scheduleAppointment(SupportAppointment appointment) {
-        if (isSlotAvailable(appointment.getAppointmentDateTime())) {
-            appointment.setUser(userService.getCurrentUser());
-            return appointmentRepository.save(appointment);
-        } else {
+    public SupportAppointment scheduleAppointment(SupportAppointment appointment) throws RuntimeException {
+        User currentUser = userService.getCurrentUser();
+        if (!isSlotAvailable(appointment.getAppointmentDateTime())) {
             throw new RuntimeException("Time slot is not available");
         }
+        log.debug("Schedule appointment for {}, time now: {}, user: {}", appointment.getAppointmentDateTime(), LocalDateTime.now(ZoneId.of("UTC")), currentUser.getEmail());
+        if (appointmentRepository.existsByUserAndAppointmentDateTimeAfter(currentUser, LocalDateTime.now(ZoneId.of("UTC")))) {
+            throw new RuntimeException("You already have an appointment");
+        }
+        appointment.setUser(currentUser);
+        return appointmentRepository.save(appointment);
     }
 
     @Override
@@ -39,9 +45,9 @@ public class SupportAppointmentServiceImpl implements SupportAppointmentService 
 
     @Override
     public List<LocalDateTime> getAvailableSlots(LocalDate date) {
-        // working hours (9 AM to 5 PM)
-        LocalTime startTime = LocalTime.of(9, 0);
-        LocalTime endTime = LocalTime.of(17, 0);
+        // Working hours (8 AM to 4 PM)
+        LocalTime startTime = LocalTime.of(8, 0);
+        LocalTime endTime = LocalTime.of(16, 0);
 
         int slotDurationMinutes = 30;
 
@@ -63,6 +69,15 @@ public class SupportAppointmentServiceImpl implements SupportAppointmentService 
                 .map(SupportAppointment::getAppointmentDateTime)
                 .collect(Collectors.toList());
 
+        // Filter out slots that are less than 2 hours in the future (only for today)
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
+        if (date.isEqual(now.toLocalDate())) {
+            allSlots = allSlots.stream()
+                    .filter(slot -> slot.isAfter(now.plusHours(2)))
+                    .collect(Collectors.toList());
+        }
+
+        // Return available slots that are not booked
         return allSlots.stream()
                 .filter(slot -> !bookedSlots.contains(slot))
                 .collect(Collectors.toList());
@@ -74,6 +89,9 @@ public class SupportAppointmentServiceImpl implements SupportAppointmentService 
     }
 
     private boolean isSlotAvailable(LocalDateTime dateTime) {
+        if (dateTime.isBefore(LocalDateTime.now(ZoneId.of("UTC")).plusHours(2))) {
+            return false;
+        }
         LocalDateTime start = dateTime.minusMinutes(29);
         LocalDateTime end = dateTime.plusMinutes(29);
         return appointmentRepository.findByAppointmentDateTimeBetween(start, end).isEmpty();
