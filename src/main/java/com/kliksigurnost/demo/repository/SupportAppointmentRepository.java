@@ -10,4 +10,6 @@ import java.util.List;
 public interface SupportAppointmentRepository  extends JpaRepository<SupportAppointment, Integer> {
     List<SupportAppointment> findByAppointmentDateTimeBetween(LocalDateTime start, LocalDateTime end);
     List<SupportAppointment> findByUser(User user);
+
+    Boolean existsByUserAndAppointmentDateTimeAfter(User user, LocalDateTime appointmentDateTimeBefore);
 }
