@@ -3,6 +3,7 @@ package com.kliksigurnost.demo.config;
 import com.kliksigurnost.demo.config.oauth2.CustomOAuth2UserService;
 import com.kliksigurnost.demo.config.oauth2.OAuth2LoginFailureHandler;
 import com.kliksigurnost.demo.config.oauth2.OAuth2LoginSuccessHandler;
+import com.kliksigurnost.demo.model.Role;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,12 +43,17 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests((authorize) -> authorize
-                        .requestMatchers("/api/auth/**", "/api/policies/setupAccount").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll() // Public endpoints
+                        .requestMatchers("/api/policies/setupAccount").hasRole(Role.ADMIN.toString()) // Only accessible by ADMIN
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.getWriter().write("Unauthorized");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.getWriter().write("Access Denied");
                         }))
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo

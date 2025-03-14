@@ -1,8 +1,12 @@
 package com.kliksigurnost.demo.config;
 
+import com.kliksigurnost.demo.model.AuthProvider;
+import com.kliksigurnost.demo.model.Role;
+import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -51,5 +55,25 @@ public class AppConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    // bean for creating an initial admin
+    @Bean
+    public CommandLineRunner createInitialAdmin(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        return args -> {
+            // Check if an admin already exists
+            if (userRepository.findByEmail("admin@admin.com").isEmpty()) {
+                User adminUser = User.builder()
+                        .email("admin@admin.com")
+                        .password(passwordEncoder.encode("admin"))
+                        .role(Role.ADMIN)
+                        .isSetUp(false)
+                        .enabled(true)
+                        .authProvider(AuthProvider.LOCAL)
+                        .build();
+                userRepository.save(adminUser);
+                System.out.println("Initial admin user created.");
+            }
+        };
     }
 }

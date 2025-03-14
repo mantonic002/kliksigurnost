@@ -1,5 +1,6 @@
 package com.kliksigurnost.demo.config;
 
+import com.kliksigurnost.demo.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -44,6 +45,12 @@ public class JwtService {
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> extraClaims = new HashMap<>();
         extraClaims.put("email", userDetails.getUsername());
+
+        // Add the role to the token claims
+        if (userDetails instanceof User user) {
+            extraClaims.put("role", user.getRole().name());
+        }
+
         return generateToken(extraClaims, userDetails);
     }
 
@@ -56,6 +63,7 @@ public class JwtService {
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
+
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
         return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
