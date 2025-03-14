@@ -42,7 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Check if the token is expired
                 if (jwtService.isTokenExpired(jwt)) {
                     log.warn("Expired JWT token");
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401 Unauthorized
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.getWriter().write("Token expired");
                     return;
                 }
@@ -64,14 +64,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext().setAuthentication(authToken);
                     } else {
                         log.warn("Invalid JWT token for user: {}", email);
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401 Unauthorized
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.getWriter().write("Invalid token");
                         return;
                     }
                 }
             } catch (Exception e) {
                 log.error("Error processing JWT token: {}", e.getMessage());
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401 Unauthorized
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write("Invalid token");
                 return;
             }
