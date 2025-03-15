@@ -1,12 +1,10 @@
 package com.kliksigurnost.demo.config.oauth2;
 
-import com.kliksigurnost.demo.model.AuthProvider;
-import com.kliksigurnost.demo.model.CloudflareAccount;
-import com.kliksigurnost.demo.model.Role;
-import com.kliksigurnost.demo.model.User;
+import com.kliksigurnost.demo.model.*;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.repository.UserRepository;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
+import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +26,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final PasswordEncoder passwordEncoder;
     private final CloudflareAccountRepository cloudflareAccountRepository;
     private final CloudflareAccountService cloudflareService;
+    private final CloudflarePolicyService cloudflarePolicyService;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -70,9 +69,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
             cloudflareService.updateEnrollmentPolicyAddEmail(cloudflareAccount, email);
 
-            userRepository.save(user);
+            User registeredUser = userRepository.save(user);
+
+            cloudflarePolicyService.createDefaultPolicy(registeredUser);
         }
 
         return new CustomOAuth2User(oAuth2User, user);
     }
+
+
 }

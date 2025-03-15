@@ -18,4 +18,5 @@ public interface CloudflarePolicyService {
 
     List<CloudflarePolicy> getAllPolicies();
 
+    void createDefaultPolicy(User user);
 }
