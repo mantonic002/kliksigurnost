@@ -31,6 +31,11 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
                 .getAccountId();
     }
 
+    @Override
+    public List<CloudflareAccount> getAllAccounts() {
+        return repository.findAll();
+    }
+
     private CloudflareAccount createNewAccount(CloudflareAccount account) {
         String appId = getOrCreateEnrollmentApplication(account);
         account.setEnrollmentApplicationId(appId);

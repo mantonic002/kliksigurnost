@@ -13,5 +13,9 @@ public interface CloudflarePolicyService {
 
     void updatePolicy(String policyId, CloudflarePolicy updatedPolicy);
 
+    List<CloudflarePolicy> getPoliciesByUser(Integer userId);
     List<CloudflarePolicy> getPoliciesByUser();
+
+    List<CloudflarePolicy> getAllPolicies();
+
 }

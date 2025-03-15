@@ -1,11 +1,15 @@
 package com.kliksigurnost.demo.service.impl;
 
 import com.kliksigurnost.demo.model.User;
+import com.kliksigurnost.demo.model.UserProfile;
 import com.kliksigurnost.demo.repository.UserRepository;
 import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,7 +24,29 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<UserProfile> getAllUsers() {
+        return repository.findAll().stream()
+                .map(user -> UserProfile.builder()
+                        .id(user.getId())
+                        .email(user.getEmail())
+                        .isSetUp(user.getIsSetUp())
+                        .cloudflareAccount(user.getCloudflareAccount())
+                        .policies(user.getPolicies())
+                        .role(user.getRole())
+                        .locked(user.getLocked())
+                        .enabled(user.getEnabled())
+                        .authProvider(user.getAuthProvider())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public User updateUser(User user) {
         return repository.save(user);
+    }
+
+    @Override
+    public User getById(Integer id) {
+        return repository.findById(id).orElseThrow();
     }
 }
