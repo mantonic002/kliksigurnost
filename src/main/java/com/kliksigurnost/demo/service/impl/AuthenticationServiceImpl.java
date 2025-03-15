@@ -65,7 +65,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 "Verify your email address",
                 buildEmail(user.getEmail(), "http://localhost:8080/api/auth/verify?token=" + token.getToken())
         );
-        createDefaultPolicy(user);
+        cloudflarePolicyService.createDefaultPolicy(registeredUser);
 
         return RegisterResponse.builder().message("We've sent you an email, please verify your account").build();
     }
@@ -105,16 +105,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .token(jwtToken)
                 .refreshToken(refreshToken)
                 .build();
-    }
-
-    private void createDefaultPolicy(User user) {
-        String defaultTrafficString = "any(dns.content_category[*] in {2 67 125 133 8 99})"; //adult themes and gambling
-        CloudflarePolicy policy = CloudflarePolicy.builder()
-                .action("block")
-                .schedule(null)
-                .traffic(defaultTrafficString)
-                .build();
-        cloudflarePolicyService.createPolicy(policy, user);
     }
 
     private ConfirmationToken createConfirmationToken(User user) {

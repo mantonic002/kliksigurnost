@@ -165,6 +165,18 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
         return policyRepository.findAll();
     }
 
+    @Override
+    public void createDefaultPolicy(User user) {
+        log.debug("Creating default policy for user: {}", user);
+        String defaultTrafficString = "any(dns.content_category[*] in {2 67 125 133 8 99})"; //adult themes and gambling
+        CloudflarePolicy policy = CloudflarePolicy.builder()
+                .action("block")
+                .schedule(null)
+                .traffic(defaultTrafficString)
+                .build();
+        createPolicy(policy, user);
+    }
+
     // Helper Methods
     private String generatePolicyName(User user) {
         String email = user.getEmail();

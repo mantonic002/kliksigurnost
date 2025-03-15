@@ -1,5 +1,7 @@
 package com.kliksigurnost.demo.model;
 
 public enum AuthProvider {
-    LOCAL, GOOGLE
+    LOCAL,
+    GOOGLE,
+    FACEBOOK
 }

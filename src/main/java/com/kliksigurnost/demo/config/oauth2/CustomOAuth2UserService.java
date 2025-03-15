@@ -1,13 +1,12 @@
 package com.kliksigurnost.demo.config.oauth2;
 
-import com.kliksigurnost.demo.model.AuthProvider;
-import com.kliksigurnost.demo.model.CloudflareAccount;
-import com.kliksigurnost.demo.model.Role;
-import com.kliksigurnost.demo.model.User;
+import com.kliksigurnost.demo.model.*;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.repository.UserRepository;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
+import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
@@ -18,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
@@ -26,12 +26,24 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final PasswordEncoder passwordEncoder;
     private final CloudflareAccountRepository cloudflareAccountRepository;
     private final CloudflareAccountService cloudflareService;
+    private final CloudflarePolicyService cloudflarePolicyService;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
-        String email = oAuth2User.getAttribute("email");
+        // Determine the provider (Google or Facebook)
+        String registrationId = userRequest.getClientRegistration().getRegistrationId();
+
+        String email;
+        if (registrationId.equals("google")) {
+            email = oAuth2User.getAttribute("email");
+        } else if (registrationId.equals("facebook")) {
+            email = oAuth2User.getAttribute("email");
+            log.debug("Facebook email: {}", email);
+        } else {
+            throw new OAuth2AuthenticationException("Unsupported OAuth2 provider: " + registrationId);
+        }
 
         Optional<User> userOptional = userRepository.findByEmail(email);
         User user;
@@ -50,16 +62,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                     .role(Role.USER)
                     .cloudflareAccount(cloudflareAccount)
-                    .authProvider(AuthProvider.GOOGLE)
+                    .authProvider(registrationId.equals("google") ? AuthProvider.GOOGLE : AuthProvider.FACEBOOK)
                     .isSetUp(false)
                     .enabled(true)
                     .build();
 
             cloudflareService.updateEnrollmentPolicyAddEmail(cloudflareAccount, email);
 
-            userRepository.save(user);
+            User registeredUser = userRepository.save(user);
+
+            cloudflarePolicyService.createDefaultPolicy(registeredUser);
         }
 
         return new CustomOAuth2User(oAuth2User, user);
     }
+
+
 }

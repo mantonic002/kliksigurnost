@@ -17,7 +17,7 @@ public class CloudflarePolicy {
     String traffic;
     String cloudflareAccId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JsonBackReference
     User user;
 
