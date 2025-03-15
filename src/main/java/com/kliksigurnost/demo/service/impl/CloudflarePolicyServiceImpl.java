@@ -150,8 +150,19 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
     }
 
     @Override
+    public List<CloudflarePolicy> getPoliciesByUser(Integer userId) {
+        User user = userService.getById(userId);
+        return policyRepository.findByUser(user);
+    }
+
+    @Override
     public List<CloudflarePolicy> getPoliciesByUser() {
         return policyRepository.findByUser(userService.getCurrentUser());
+    }
+
+    @Override
+    public List<CloudflarePolicy> getAllPolicies() {
+        return policyRepository.findAll();
     }
 
     // Helper Methods

@@ -84,18 +84,6 @@ public class CloudflareController {
         }
     }
 
-    @PostMapping("/setupAccount")
-    public ResponseEntity<String> setupCloudflareAccount(@RequestBody CloudflareAccount account) {
-        log.info("Setting up Cloudflare account");
-        try {
-            String response = cloudflareAccountService.createAccount(account);
-            return ResponseEntity.ok(response);
-        } catch (CloudflareApiException e) {
-            log.error("Failed to set up Cloudflare account: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
-        }
-    }
-
     @GetMapping("/devices")
     public ResponseEntity<List<CloudflareDevice>> getUserDevices() {
         log.info("Fetching devices for the current user");

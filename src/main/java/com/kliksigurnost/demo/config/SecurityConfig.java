@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests((authorize) -> authorize
                         .requestMatchers("/api/auth/**").permitAll() // Public endpoints
-                        .requestMatchers("/api/policies/setupAccount").hasRole(Role.ADMIN.toString()) // Only accessible by ADMIN
+                        .requestMatchers("/api/admin/**").hasRole(Role.ADMIN.toString()) // Only accessible by ADMIN
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {

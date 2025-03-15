@@ -11,6 +11,8 @@ public interface SupportAppointmentService {
 
     List<SupportAppointment> getAppointmentsForUser();
 
+    List<SupportAppointment> getAllAppointmentsBetween(LocalDateTime start, LocalDateTime end);
+
     List<LocalDateTime> getAvailableSlots(LocalDate date);
 
     void deleteAppointment(Integer appointmentId);

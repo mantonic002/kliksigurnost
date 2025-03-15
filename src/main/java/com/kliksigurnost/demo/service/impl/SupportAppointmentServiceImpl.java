@@ -31,16 +31,21 @@ public class SupportAppointmentServiceImpl implements SupportAppointmentService 
             throw new RuntimeException("Time slot is not available");
         }
         log.debug("Schedule appointment for {}, time now: {}, user: {}", appointment.getAppointmentDateTime(), LocalDateTime.now(ZoneId.of("UTC")), currentUser.getEmail());
-        if (appointmentRepository.existsByUserAndAppointmentDateTimeAfter(currentUser, LocalDateTime.now(ZoneId.of("UTC")))) {
+        if (appointmentRepository.existsByUserEmailAndAppointmentDateTimeAfter(currentUser.getEmail(), LocalDateTime.now(ZoneId.of("UTC")))) {
             throw new RuntimeException("You already have an appointment");
         }
-        appointment.setUser(currentUser);
+        appointment.setUserEmail(currentUser.getEmail());
         return appointmentRepository.save(appointment);
     }
 
     @Override
     public List<SupportAppointment> getAppointmentsForUser() {
-        return appointmentRepository.findByUser(userService.getCurrentUser());
+        return appointmentRepository.findByUserEmail(userService.getCurrentUser().getEmail());
+    }
+
+    @Override
+    public List<SupportAppointment> getAllAppointmentsBetween(LocalDateTime start, LocalDateTime end) {
+        return appointmentRepository.findByAppointmentDateTimeBetween(start, end);
     }
 
     @Override

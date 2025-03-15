@@ -19,8 +19,7 @@ public class SupportAppointment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JsonBackReference
-    User user;
+    String userEmail;
+
     private LocalDateTime appointmentDateTime;
 }
