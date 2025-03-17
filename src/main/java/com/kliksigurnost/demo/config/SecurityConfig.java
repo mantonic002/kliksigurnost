@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests((authorize) -> authorize
                         .requestMatchers("/api/auth/**").permitAll() // Public endpoints
                         .requestMatchers("/api/admin/**").hasRole(Role.ADMIN.toString()) // Only accessible by ADMIN
+                        .requestMatchers("/api/policies/**", "/api/appointments/**", "/api/notifications/**").hasRole(Role.USER.toString()) // Only accessible by USER
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptionHandling -> exceptionHandling
                         .authenticationEntryPoint((request, response, authException) -> {

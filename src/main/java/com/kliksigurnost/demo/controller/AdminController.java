@@ -66,6 +66,17 @@ public class AdminController {
         }
     }
 
+    @PutMapping("/users/lock/{userId}")
+    public ResponseEntity<UserProfile> switchUserLocked (@PathVariable Integer userId) {
+        log.info("Switching user locked for {}", userId);
+        try {
+            return ResponseEntity.ok(new UserProfile(userService.switchUserLocked(userId)));
+        } catch (Exception e) {
+            log.error("Failed to update user: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
     // Endpoint to get all policies
     @GetMapping("/policies")
     public ResponseEntity<List<CloudflarePolicy>> getAllPolicies() {

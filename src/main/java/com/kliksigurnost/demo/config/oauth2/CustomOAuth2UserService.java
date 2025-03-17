@@ -49,6 +49,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         User user;
         if (userOptional.isPresent()) {
             user = userOptional.get();
+                if (!user.isAccountNonLocked()) {
+                    throw new OAuth2AuthenticationException("Account is locked");
+                }
         } else {
             Optional<CloudflareAccount> cloudflareAccountOpt = cloudflareAccountRepository.findFirstByUserNumIsLessThan(50);
             if (cloudflareAccountOpt.isEmpty()) {
