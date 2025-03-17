@@ -16,6 +16,7 @@ public class CloudflareAccount {
     @Id
     private String accountId;
     private String email;
+    private String organizationName;
     private String authorizationToken;
     private String enrollmentApplicationId;
     private String enrollmentPolicyId;

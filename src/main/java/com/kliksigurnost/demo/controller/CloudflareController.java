@@ -1,13 +1,12 @@
 package com.kliksigurnost.demo.controller;
 
 import com.kliksigurnost.demo.exception.CloudflareApiException;
+import com.kliksigurnost.demo.exception.LimitReached;
 import com.kliksigurnost.demo.exception.NotFoundException;
 import com.kliksigurnost.demo.exception.UnauthorizedAccessException;
-import com.kliksigurnost.demo.model.CloudflareAccount;
 import com.kliksigurnost.demo.model.CloudflareDevice;
 import com.kliksigurnost.demo.model.CloudflareLog;
 import com.kliksigurnost.demo.model.CloudflarePolicy;
-import com.kliksigurnost.demo.service.CloudflareAccountService;
 import com.kliksigurnost.demo.service.CloudflareDeviceService;
 import com.kliksigurnost.demo.service.CloudflareLogService;
 import com.kliksigurnost.demo.service.CloudflarePolicyService;
@@ -28,7 +27,6 @@ public class CloudflareController {
     private final CloudflarePolicyService cloudflarePolicyService;
     private final CloudflareLogService cloudflareLogService;
     private final CloudflareDeviceService cloudflareDeviceService;
-    private final CloudflareAccountService cloudflareAccountService;
 
     @GetMapping
     public ResponseEntity<List<CloudflarePolicy>> getUserPolicies() {
@@ -45,6 +43,9 @@ public class CloudflareController {
         } catch (CloudflareApiException e) {
             log.error("Failed to create policy: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        } catch (LimitReached e) {
+            log.error("Failed to create policy: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
     }
 

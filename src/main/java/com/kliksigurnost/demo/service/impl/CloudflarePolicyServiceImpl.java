@@ -3,6 +3,7 @@ package com.kliksigurnost.demo.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.kliksigurnost.demo.exception.CloudflareApiException;
+import com.kliksigurnost.demo.exception.LimitReached;
 import com.kliksigurnost.demo.exception.NotFoundException;
 import com.kliksigurnost.demo.exception.UnauthorizedAccessException;
 import com.kliksigurnost.demo.helper.MakeApiCall;
@@ -35,7 +36,11 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
 
     @Override
     public String createPolicy(CloudflarePolicy policy) {
-        return createPolicy(policy, userService.getCurrentUser());
+        User currentUser = userService.getCurrentUser();
+        if (policyRepository.countByUser(currentUser) >= 10) {
+            throw new LimitReached("Policy limit exceeded");
+        }
+        return createPolicy(policy, currentUser);
     }
 
     @Override
