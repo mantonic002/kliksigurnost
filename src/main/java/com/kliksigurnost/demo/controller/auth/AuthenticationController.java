@@ -1,8 +1,10 @@
 package com.kliksigurnost.demo.controller.auth;
 
 import com.kliksigurnost.demo.config.JwtService;
+import com.kliksigurnost.demo.model.UserProfile;
 import com.kliksigurnost.demo.service.AuthenticationService;
 import com.kliksigurnost.demo.service.ConfirmationTokenService;
+import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +26,7 @@ public class AuthenticationController {
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
     private final ConfirmationTokenService confirmationTokenService;
+    private final UserService userService;
 
     @Value("${frontend.uri}")
     private String frontendUri;
@@ -48,6 +51,16 @@ public class AuthenticationController {
                             .error("Registration failed due to an internal error")
                             .build()
             );
+        }
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserProfile> getCurrentUser() {
+        try {
+            return ResponseEntity.status(HttpStatus.OK).body(
+                    new UserProfile(userService.getCurrentUser()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
 

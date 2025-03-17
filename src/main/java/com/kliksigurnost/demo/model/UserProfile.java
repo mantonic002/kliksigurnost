@@ -18,7 +18,7 @@ public class UserProfile {
 
     private Boolean isSetUp;
 
-    private CloudflareAccount cloudflareAccount;
+    private String organizationName;
 
     private List<CloudflarePolicy> policies;
 
@@ -34,7 +34,9 @@ public class UserProfile {
         this.id = user.getId();
         this.email = user.getEmail();
         this.isSetUp = user.getIsSetUp();
-        this.cloudflareAccount = user.getCloudflareAccount();
+        if ( user.getCloudflareAccount() != null ) {
+            this.organizationName = user.getCloudflareAccount().getOrganizationName();
+        }
         this.policies = user.getPolicies();
         this.role = user.getRole();
         this.locked = user.getLocked();
