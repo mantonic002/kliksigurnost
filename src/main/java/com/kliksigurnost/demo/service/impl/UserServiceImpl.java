@@ -26,17 +26,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<UserProfile> getAllUsers() {
         return repository.findAll().stream()
-                .map(user -> UserProfile.builder()
-                        .id(user.getId())
-                        .email(user.getEmail())
-                        .isSetUp(user.getIsSetUp())
-                        .cloudflareAccount(user.getCloudflareAccount())
-                        .policies(user.getPolicies())
-                        .role(user.getRole())
-                        .locked(user.getLocked())
-                        .enabled(user.getEnabled())
-                        .authProvider(user.getAuthProvider())
-                        .build())
+                .map(UserProfile::new)
                 .collect(Collectors.toList());
     }
 
@@ -48,5 +38,12 @@ public class UserServiceImpl implements UserService {
     @Override
     public User getById(Integer id) {
         return repository.findById(id).orElseThrow();
+    }
+
+    @Override
+    public User switchUserLocked(Integer id) {
+        User user = getById(id);
+        user.setLocked(!user.getLocked());
+        return repository.save(user);
     }
 }

@@ -29,4 +29,16 @@ public class UserProfile {
     private Boolean enabled;
 
     private AuthProvider authProvider;
+
+    public UserProfile(User user) {
+        this.id = user.getId();
+        this.email = user.getEmail();
+        this.isSetUp = user.getIsSetUp();
+        this.cloudflareAccount = user.getCloudflareAccount();
+        this.policies = user.getPolicies();
+        this.role = user.getRole();
+        this.locked = user.getLocked();
+        this.enabled = user.getEnabled();
+        this.authProvider = user.getAuthProvider();
+    }
 }
