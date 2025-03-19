@@ -26,7 +26,6 @@ public class AuthenticationController {
     private final AuthenticationService authenticationService;
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
-    private final ConfirmationTokenService confirmationTokenService;
     private final UserService userService;
 
     @Value("${frontend.uri}")

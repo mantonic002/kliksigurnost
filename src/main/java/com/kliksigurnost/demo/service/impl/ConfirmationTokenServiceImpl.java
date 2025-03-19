@@ -16,8 +16,6 @@ import java.time.LocalDateTime;
 public class ConfirmationTokenServiceImpl implements ConfirmationTokenService {
 
     private final ConfirmationTokenRepository confirmationTokenRepository;
-    private final UserService userService;
-    private final PasswordEncoder passwordEncoder;
 
     @Override
     public ConfirmationToken save(ConfirmationToken confirmationToken) {
