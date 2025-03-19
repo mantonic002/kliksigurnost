@@ -1,11 +1,9 @@
 package com.kliksigurnost.demo.service.impl;
 
-import com.kliksigurnost.demo.exception.NotFoundException;
+import com.kliksigurnost.demo.exception.InvalidTokenException;
 import com.kliksigurnost.demo.model.ConfirmationToken;
-import com.kliksigurnost.demo.model.User;
 import com.kliksigurnost.demo.repository.ConfirmationTokenRepository;
 import com.kliksigurnost.demo.service.ConfirmationTokenService;
-import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +14,6 @@ import java.time.LocalDateTime;
 public class ConfirmationTokenServiceImpl implements ConfirmationTokenService {
 
     private final ConfirmationTokenRepository confirmationTokenRepository;
-    private final UserService userService;
 
     @Override
     public ConfirmationToken save(ConfirmationToken confirmationToken) {
@@ -25,25 +22,21 @@ public class ConfirmationTokenServiceImpl implements ConfirmationTokenService {
     }
 
     @Override
-    public String confirmToken(String token) {
+    public ConfirmationToken confirmToken(String token) throws InvalidTokenException {
         ConfirmationToken confirmationToken = confirmationTokenRepository.findByToken(token)
-                .orElseThrow(() -> new NotFoundException("Confirmation token not found"));
+                .orElseThrow(() -> new InvalidTokenException("Confirmation token not found"));
 
         if (confirmationToken.getConfirmedAt() != null) {
-            throw new IllegalStateException("Token is already confirmed");
+            throw new InvalidTokenException("Token is already confirmed");
         }
 
         if (confirmationToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new IllegalStateException("Token is expired");
+            throw new InvalidTokenException("Token is expired");
         }
-
-        User user = confirmationToken.getUser();
-        user.setEnabled(true);
-        userService.updateUser(user);
 
         confirmationToken.setConfirmedAt(LocalDateTime.now());
         confirmationTokenRepository.save(confirmationToken);
 
-        return confirmationToken.getToken();
+        return confirmationToken;
     }
 }

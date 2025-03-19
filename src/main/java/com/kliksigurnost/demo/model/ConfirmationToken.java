@@ -19,6 +19,9 @@ public class ConfirmationToken {
     @Column(nullable = false)
     private String token;
 
+    @Enumerated(EnumType.STRING)
+    private TokenType tokenType;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -31,3 +34,4 @@ public class ConfirmationToken {
     @JoinColumn(nullable = false)
     private User user;
 }
+

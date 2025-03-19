@@ -5,12 +5,14 @@ import com.kliksigurnost.demo.controller.auth.AuthenticationRequest;
 import com.kliksigurnost.demo.controller.auth.AuthenticationResponse;
 import com.kliksigurnost.demo.controller.auth.RegisterRequest;
 import com.kliksigurnost.demo.controller.auth.RegisterResponse;
+import com.kliksigurnost.demo.exception.InvalidTokenException;
 import com.kliksigurnost.demo.model.*;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.repository.UserRepository;
 import com.kliksigurnost.demo.service.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
@@ -35,6 +37,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final CloudflarePolicyService cloudflarePolicyService;
     private final ConfirmationTokenService confirmationTokenService;
     private final EmailSenderService emailSenderService;
+
+    @Value("${frontend.uri}")
+    private String frontendUri;
 
     @Override
     @Transactional
@@ -83,6 +88,47 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         return buildJwtResponse(user);
     }
 
+
+    @Override
+    public void forgotPassword(String email) {
+        userRepository.findByEmail(email).ifPresent(user -> {
+            String token = UUID.randomUUID().toString();
+            ConfirmationToken confirmationToken = ConfirmationToken.builder()
+                    .token(token)
+                    .tokenType(TokenType.PASSWORD_RESET)
+                    .createdAt(LocalDateTime.now())
+                    .expiresAt(LocalDateTime.now().plusMinutes(15))
+                    .user(user)
+                    .build();
+            confirmationTokenService.save(confirmationToken);
+            emailSenderService.sendEmail(
+                    user.getEmail(),
+                    "Password Reset Request",
+                    buildPasswordResetEmail(user.getEmail(), frontendUri + "/reset-password?token=" + token)
+            );
+        });
+    }
+
+    @Transactional
+    @Override
+    public void verifyAccount(String token) throws InvalidTokenException {
+        ConfirmationToken confirmationToken = confirmationTokenService.confirmToken(token);
+
+        User user = confirmationToken.getUser();
+        user.setEnabled(true);
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(String token, String newPassword) throws InvalidTokenException {
+        ConfirmationToken confirmationToken = confirmationTokenService.confirmToken(token);
+
+        User user = confirmationToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
     private User createUser(RegisterRequest request, CloudflareAccount cloudflareAccount) {
         return User.builder()
                 .email(request.getEmail())
@@ -111,11 +157,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String token = UUID.randomUUID().toString();
         ConfirmationToken confirmationToken = ConfirmationToken.builder()
                 .token(token)
+                .tokenType(TokenType.EMAIL_VERIFICATION)
                 .createdAt(LocalDateTime.now())
                 .expiresAt(LocalDateTime.now().plusMinutes(30))
                 .user(user)
                 .build();
         return confirmationTokenService.save(confirmationToken);
+    }
+
+    private String buildPasswordResetEmail(String name, String link) {
+        return "<div>... Password reset link: <a href=\"" + link + "\">Reset Password</a> ...</div>";
     }
 
     private String buildEmail(String name, String link) {
