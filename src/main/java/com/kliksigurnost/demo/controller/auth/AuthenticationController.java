@@ -4,7 +4,6 @@ import com.kliksigurnost.demo.config.JwtService;
 import com.kliksigurnost.demo.exception.InvalidTokenException;
 import com.kliksigurnost.demo.model.UserProfile;
 import com.kliksigurnost.demo.service.AuthenticationService;
-import com.kliksigurnost.demo.service.ConfirmationTokenService;
 import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

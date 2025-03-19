@@ -4,9 +4,7 @@ import com.kliksigurnost.demo.exception.InvalidTokenException;
 import com.kliksigurnost.demo.model.ConfirmationToken;
 import com.kliksigurnost.demo.repository.ConfirmationTokenRepository;
 import com.kliksigurnost.demo.service.ConfirmationTokenService;
-import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
