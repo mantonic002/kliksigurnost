@@ -1,6 +1,7 @@
 package com.kliksigurnost.demo.controller.auth;
 
 import com.kliksigurnost.demo.config.JwtService;
+import com.kliksigurnost.demo.exception.InvalidTokenException;
 import com.kliksigurnost.demo.model.UserProfile;
 import com.kliksigurnost.demo.service.AuthenticationService;
 import com.kliksigurnost.demo.service.ConfirmationTokenService;
@@ -65,16 +66,20 @@ public class AuthenticationController {
     }
 
     @GetMapping("/verify")
-    public ResponseEntity<Void> confirm(@RequestParam("token") String token) {
+    public ResponseEntity<?> confirm(@RequestParam("token") String token) {
         try {
-            confirmationTokenService.confirmToken(token);
+            authenticationService.verifyAccount(token);
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUri + "/login"))
+                    .location(URI.create(frontendUri + "/prijava"))
                     .build();
+        } catch (InvalidTokenException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            log.error("Account verification error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error verifying account.");
         }
     }
+
 
     @PostMapping("/authenticate")
     public ResponseEntity<AuthenticationResponse> authenticateUser(@RequestBody AuthenticationRequest request) {
@@ -149,6 +154,31 @@ public class AuthenticationController {
                             .error("Failed to refresh token")
                             .build()
             );
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        log.info("Forgot password request for email: {}", request.getEmail());
+        try {
+            authenticationService.forgotPassword(request.getEmail());
+            return ResponseEntity.ok("If the email is registered, a password reset link will be sent.");
+        } catch (Exception e) {
+            log.error("Forgot password error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing request.");
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            authenticationService.resetPassword(request.getToken(), request.getNewPassword());
+            return ResponseEntity.ok("Password reset successfully.");
+        } catch (InvalidTokenException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("Password reset error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error resetting password.");
         }
     }
 }
