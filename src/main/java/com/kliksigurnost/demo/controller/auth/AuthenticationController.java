@@ -8,6 +8,7 @@ import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -30,6 +31,9 @@ public class AuthenticationController {
     @Value("${frontend.uri}")
     private String frontendUri;
 
+    private final Environment env;
+
+
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> registerUser(@RequestBody RegisterRequest request) {
         log.info("Registering user with email: {}", request.getEmail());
@@ -47,7 +51,7 @@ public class AuthenticationController {
             log.error("Registration error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     RegisterResponse.builder()
-                            .error("Registration failed due to an internal error")
+                            .error(env.getProperty("registration-fail.internal"))
                             .build()
             );
         }
@@ -74,7 +78,7 @@ public class AuthenticationController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
             log.error("Account verification error: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error verifying account.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(env.getProperty("verify-fail.internal"));
         }
     }
 
@@ -96,7 +100,7 @@ public class AuthenticationController {
             log.error("Authentication error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                     AuthenticationResponse.builder()
-                            .error("Authentication failed")
+                            .error(env.getProperty("authentication-fail"))
                             .build()
             );
         }
@@ -109,7 +113,7 @@ public class AuthenticationController {
             if (refreshToken == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                         AuthenticationResponse.builder()
-                                .error("Invalid refresh token")
+                                .error(env.getProperty("invalid-refresh-token"))
                                 .build()
                 );
             }
@@ -119,7 +123,7 @@ public class AuthenticationController {
             if (email == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                         AuthenticationResponse.builder()
-                                .error("Invalid refresh token")
+                                .error(env.getProperty("invalid-refresh-token"))
                                 .build()
                 );
             }
@@ -130,7 +134,7 @@ public class AuthenticationController {
             if (!jwtService.isTokenValid(refreshToken, userDetails)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
                         AuthenticationResponse.builder()
-                                .error("Invalid refresh token")
+                                .error(env.getProperty("invalid-refresh-token"))
                                 .build()
                 );
             }
@@ -149,7 +153,7 @@ public class AuthenticationController {
             log.error("Refresh token error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                     AuthenticationResponse.builder()
-                            .error("Failed to refresh token")
+                            .error(env.getProperty("refresh-token-fail"))
                             .build()
             );
         }
@@ -160,10 +164,10 @@ public class AuthenticationController {
         log.info("Forgot password request for email: {}", request.getEmail());
         try {
             authenticationService.forgotPassword(request.getEmail());
-            return ResponseEntity.ok("If the email is registered, a password reset link will be sent.");
+            return ResponseEntity.ok(env.getProperty("forgotten-pw-message"));
         } catch (Exception e) {
             log.error("Forgot password error: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error processing request.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(env.getProperty("forgotten-pw-internal"));
         }
     }
 
@@ -171,12 +175,12 @@ public class AuthenticationController {
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
         try {
             authenticationService.resetPassword(request.getToken(), request.getNewPassword());
-            return ResponseEntity.ok("Password reset successfully.");
+            return ResponseEntity.ok(env.getProperty("reset-pw-message"));
         } catch (InvalidTokenException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (Exception e) {
             log.error("Password reset error: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error resetting password.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(env.getProperty("reset-pw-internal"));
         }
     }
 }

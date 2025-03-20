@@ -15,6 +15,7 @@ import com.kliksigurnost.demo.service.CloudflareLogService;
 import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -35,6 +36,7 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
     private final CloudflarePolicyRepository policyRepository;
     private final UserService userService;
     private final CloudflareAccountRepository accountRepository;
+    private final Environment env;
 
     @Override
     public List<CloudflareLog> getLogsForUser(
@@ -97,7 +99,7 @@ public class CloudflareLogServiceImpl implements CloudflareLogService {
             return mapLogsToCloudflareLogs(logs);
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new CloudflareApiException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
     }
 

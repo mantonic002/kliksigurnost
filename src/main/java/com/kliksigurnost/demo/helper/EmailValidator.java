@@ -1,4 +1,4 @@
-package com.kliksigurnost.demo.service.impl;
+package com.kliksigurnost.demo.helper;
 
 import org.springframework.stereotype.Service;
 

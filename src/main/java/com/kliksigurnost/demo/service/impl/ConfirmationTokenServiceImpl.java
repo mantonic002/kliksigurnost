@@ -5,6 +5,7 @@ import com.kliksigurnost.demo.model.ConfirmationToken;
 import com.kliksigurnost.demo.repository.ConfirmationTokenRepository;
 import com.kliksigurnost.demo.service.ConfirmationTokenService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 public class ConfirmationTokenServiceImpl implements ConfirmationTokenService {
 
     private final ConfirmationTokenRepository confirmationTokenRepository;
+    private final Environment env;
 
     @Override
     public ConfirmationToken save(ConfirmationToken confirmationToken) {
@@ -27,11 +29,11 @@ public class ConfirmationTokenServiceImpl implements ConfirmationTokenService {
                 .orElseThrow(() -> new InvalidTokenException("Confirmation token not found"));
 
         if (confirmationToken.getConfirmedAt() != null) {
-            throw new InvalidTokenException("Token is already confirmed");
+            throw new InvalidTokenException(env.getProperty("token-already-confirmed"));
         }
 
         if (confirmationToken.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new InvalidTokenException("Token is expired");
+            throw new InvalidTokenException(env.getProperty("token-expired"));
         }
 
         confirmationToken.setConfirmedAt(LocalDateTime.now());

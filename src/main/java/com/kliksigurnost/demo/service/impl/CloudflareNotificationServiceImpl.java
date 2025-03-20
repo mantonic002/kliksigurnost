@@ -12,6 +12,7 @@ import com.kliksigurnost.demo.service.UserService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,8 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
     private final CloudflarePolicyRepository policyRepository;
     private final NotificationRepository notificationRepository;
     private final CloudflareAccountRepository accRepository;
+
+    private final Environment env;
 
     @Override
     @Scheduled(fixedRate = 300000)
@@ -122,7 +125,7 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
 
         notifications.forEach(notification -> {
             if (!notification.getUser().equals(currentUser)) {
-                throw new UnauthorizedAccessException("Unauthorized to mark this notification as seen");
+                throw new UnauthorizedAccessException(env.getProperty("notification-unauthorized-seen"));
             }
         });
 
@@ -132,10 +135,10 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
     @Override
     public void deleteNotification(Integer notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new NotificationNotFoundException("Notification not found"));
+                .orElseThrow(() -> new NotificationNotFoundException(env.getProperty("notification-not-found")));
 
         if (!notification.getUser().equals(userService.getCurrentUser())) {
-            throw new UnauthorizedAccessException("Unauthorized to delete this notification");
+            throw new UnauthorizedAccessException(env.getProperty("notification-unauthorized-delete"));
         }
 
         notificationRepository.delete(notification);

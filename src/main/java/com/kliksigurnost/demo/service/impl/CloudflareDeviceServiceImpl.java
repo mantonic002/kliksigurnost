@@ -10,6 +10,7 @@ import com.kliksigurnost.demo.service.CloudflareNotificationService;
 import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -30,6 +31,8 @@ public class CloudflareDeviceServiceImpl implements CloudflareDeviceService {
     private final MakeApiCall makeApiCall;
     private final UserService userService;
     private final CloudflareNotificationService notificationService;
+
+    private final Environment env;
 
     @Override
     public List<CloudflareDevice> getDevicesByUser() {
@@ -61,10 +64,9 @@ public class CloudflareDeviceServiceImpl implements CloudflareDeviceService {
             notificationService.createNotificationForDevices(devicesList, user);
 
             return devicesList;
-
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new CloudflareApiException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
     }
 

@@ -14,6 +14,7 @@ import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -34,11 +35,13 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
     private final CloudflarePolicyRepository policyRepository;
     private final UserService userService;
 
+    private final Environment env;
+
     @Override
     public String createPolicy(CloudflarePolicy policy) {
         User currentUser = userService.getCurrentUser();
         if (policyRepository.countByUser(currentUser) >= 10) {
-            throw new LimitReached("Policy limit exceeded");
+            throw new LimitReached(env.getProperty("policy-limit-exceeded"));
         }
         return createPolicy(policy, currentUser);
     }
@@ -73,7 +76,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
             return response.getBody();
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new CloudflareApiException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
     }
 
@@ -81,10 +84,10 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
     public void deletePolicy(String policyId) {
         User user = userService.getCurrentUser();
         CloudflarePolicy policy = policyRepository.findById(policyId)
-                .orElseThrow(() -> new NotFoundException("Policy not found"));
+                .orElseThrow(() -> new NotFoundException(env.getProperty("policy-not-found")));
 
         if (!policy.getUser().equals(user)) {
-            throw new UnauthorizedAccessException("Unauthorized to delete this policy");
+            throw new UnauthorizedAccessException(env.getProperty("policy-unauthorized-delete"));
         }
 
         String accountId = user.getCloudflareAccount().getAccountId();
@@ -104,11 +107,11 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 updateAllowAllPolicy(user);
             } else {
                 log.error("Failed to delete policy from Cloudflare API: {}", responseBody);
-                throw new CloudflareApiException("Failed to delete policy from Cloudflare API");
+                throw new CloudflareApiException(env.getProperty("policy-delete-fail"));
             }
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new CloudflareApiException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
     }
 
@@ -116,10 +119,10 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
     public void updatePolicy(String policyId, CloudflarePolicy updatedPolicy) {
         User user = userService.getCurrentUser();
         CloudflarePolicy existingPolicy = policyRepository.findById(policyId)
-                .orElseThrow(() -> new NotFoundException("Policy not found"));
+                .orElseThrow(() -> new NotFoundException(env.getProperty("policy-not-found")));
 
         if (!existingPolicy.getUser().equals(user)) {
-            throw new UnauthorizedAccessException("Unauthorized to update this policy");
+            throw new UnauthorizedAccessException(env.getProperty("policy-unauthorized-update"));
         }
 
         String accountId = user.getCloudflareAccount().getAccountId();
@@ -146,11 +149,11 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 updateAllowAllPolicy(user);
             } else {
                 log.error("Failed to update policy in Cloudflare API: {}", responseBody);
-                throw new CloudflareApiException("Failed to update policy in Cloudflare API");
+                throw new CloudflareApiException(env.getProperty("policy-update-fail"));
             }
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new CloudflareApiException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
     }
 
@@ -245,7 +248,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 return policyRepository.save(_allowAllPolicy);
             } catch (JsonProcessingException e) {
                 log.error("Error parsing Cloudflare API response", e);
-                throw new CloudflareApiException("Error processing Cloudflare API response", e);
+                throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
             }
         }
     }
@@ -275,11 +278,11 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
 
             if (!responseBody.path("success").asBoolean()) {
                 log.error("Failed to update allow-all policy in Cloudflare API: {}", responseBody);
-                throw new CloudflareApiException("Failed to update allow-all policy in Cloudflare API");
+                throw new CloudflareApiException(env.getProperty("policy-allow-update-fail"));
             }
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new CloudflareApiException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
     }
 
