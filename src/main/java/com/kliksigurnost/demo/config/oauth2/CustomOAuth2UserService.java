@@ -7,6 +7,7 @@ import com.kliksigurnost.demo.service.CloudflareAccountService;
 import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
@@ -27,6 +28,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final CloudflareAccountRepository cloudflareAccountRepository;
     private final CloudflareAccountService cloudflareService;
     private final CloudflarePolicyService cloudflarePolicyService;
+    private final Environment env;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -55,7 +57,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         } else {
             Optional<CloudflareAccount> cloudflareAccountOpt = cloudflareAccountRepository.findFirstByUserNumIsLessThan(50);
             if (cloudflareAccountOpt.isEmpty()) {
-                throw new OAuth2AuthenticationException("No more slots available.");
+                throw new OAuth2AuthenticationException(env.getProperty("no-more-slots"));
             }
 
             CloudflareAccount cloudflareAccount = cloudflareAccountOpt.get();

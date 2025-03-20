@@ -7,6 +7,7 @@ import com.kliksigurnost.demo.service.SupportAppointmentService;
 import com.kliksigurnost.demo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -23,16 +24,17 @@ import java.util.stream.Collectors;
 public class SupportAppointmentServiceImpl implements SupportAppointmentService {
     private final SupportAppointmentRepository appointmentRepository;
     private final UserService userService;
+    private final Environment env;
 
     @Override
     public SupportAppointment scheduleAppointment(SupportAppointment appointment) throws RuntimeException {
         User currentUser = userService.getCurrentUser();
         if (!isSlotAvailable(appointment.getAppointmentDateTime())) {
-            throw new RuntimeException("Time slot is not available");
+            throw new RuntimeException(env.getProperty("appointment-slot-unavailable"));
         }
         log.debug("Schedule appointment for {}, time now: {}, user: {}", appointment.getAppointmentDateTime(), LocalDateTime.now(ZoneId.of("UTC")), currentUser.getEmail());
         if (appointmentRepository.existsByUserEmailAndAppointmentDateTimeAfter(currentUser.getEmail(), LocalDateTime.now(ZoneId.of("UTC")))) {
-            throw new RuntimeException("You already have an appointment");
+            throw new RuntimeException(env.getProperty("appointment-already-has"));
         }
         appointment.setUserEmail(currentUser.getEmail());
         return appointmentRepository.save(appointment);

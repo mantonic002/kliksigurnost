@@ -12,6 +12,7 @@ import com.kliksigurnost.demo.service.CloudflareLogService;
 import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +28,8 @@ public class CloudflareController {
     private final CloudflarePolicyService cloudflarePolicyService;
     private final CloudflareLogService cloudflareLogService;
     private final CloudflareDeviceService cloudflareDeviceService;
+
+    private final Environment env;
 
     @GetMapping
     public ResponseEntity<List<CloudflarePolicy>> getUserPolicies() {
@@ -54,7 +57,7 @@ public class CloudflareController {
         log.info("Deleting policy with ID: {}", policyId);
         try {
             cloudflarePolicyService.deletePolicy(policyId);
-            return ResponseEntity.ok("Policy deleted successfully");
+            return ResponseEntity.ok(env.getProperty("policy-delete-success"));
         } catch (NotFoundException e) {
             log.warn("Policy not found: {}", policyId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
@@ -72,7 +75,7 @@ public class CloudflareController {
         log.info("Updating policy with ID: {}", policyId);
         try {
             cloudflarePolicyService.updatePolicy(policyId, updatedPolicy);
-            return ResponseEntity.ok("Policy updated successfully");
+            return ResponseEntity.ok(env.getProperty("policy-update-success"));
         } catch (NotFoundException e) {
             log.warn("Policy not found: {}", policyId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());

@@ -8,6 +8,7 @@ import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
@@ -22,6 +23,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
 
     private final RestTemplate restTemplate;
     private final CloudflareAccountRepository repository;
+    private final Environment env;
     private static final String BASE_URL = "https://api.cloudflare.com/client/v4/accounts/";
 
     @Override
@@ -63,10 +65,10 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             return responseBody.path("result").path("id").asText();
         } catch (RestClientException e) {
             log.error("Error creating enrollment application", e);
-            throw new RuntimeException("Error contacting Cloudflare API", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-exception"), e);
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
     }
 
@@ -78,7 +80,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             return restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
         } catch (RestClientException e) {
             log.error("Error fetching applications from Cloudflare API", e);
-            throw new RuntimeException("Error contacting Cloudflare API", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-exception"), e);
         }
     }
 
@@ -96,10 +98,10 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             return responseBody.path("result").path("id").asText();
         } catch (RestClientException e) {
             log.error("Error creating enrollment policy", e);
-            throw new RuntimeException("Error contacting Cloudflare API", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-exception"), e);
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
     }
 
@@ -124,7 +126,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             return response.getBody();
         } catch (RestClientException e) {
             log.error("Error updating Cloudflare policy", e);
-            throw new RuntimeException("Error updating Cloudflare policy", e);
+            throw new RuntimeException(env.getProperty("cloudflare-update-policy-exception"), e);
         }
     }
 
@@ -151,10 +153,10 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             }
         } catch (RestClientException e) {
             log.error("Error fetching applications from Cloudflare API", e);
-            throw new RuntimeException("Error contacting Cloudflare API", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-exception"), e);
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
         return null;
     }
@@ -176,10 +178,10 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
             }
         } catch (RestClientException e) {
             log.error("Error fetching applications from Cloudflare API", e);
-            throw new RuntimeException("Error contacting Cloudflare API", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-exception"), e);
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare API response", e);
-            throw new RuntimeException("Error processing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
         return null;
     }

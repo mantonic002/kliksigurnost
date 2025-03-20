@@ -15,6 +15,7 @@ import com.kliksigurnost.demo.service.*;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
@@ -41,6 +42,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final EmailSenderService emailSenderService;
     private final EmailTemplateService emailTemplateService;
 
+    private final Environment env;
+
     @Value("${frontend.uri}")
     private String frontendUri;
 
@@ -48,16 +51,16 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
         if (!emailValidator.test(request.getEmail())) {
-            return RegisterResponse.builder().error("Email is not valid").build();
+            return RegisterResponse.builder().error(env.getProperty("email-invalid")).build();
         }
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            return RegisterResponse.builder().error("User with that email already exists").build();
+            return RegisterResponse.builder().error(env.getProperty("email-user-exists")).build();
         }
 
         Optional<CloudflareAccount> cloudflareAccountOpt = cloudflareAccountRepository.findFirstByUserNumIsLessThan(50);
         if (cloudflareAccountOpt.isEmpty()) {
-            return RegisterResponse.builder().error("No more slots, try again later").build();
+            return RegisterResponse.builder().error(env.getProperty("no-more-slots")).build();
         }
 
         CloudflareAccount cloudflareAccount = cloudflareAccountOpt.get();
@@ -70,12 +73,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         ConfirmationToken token = createConfirmationToken(registeredUser);
         emailSenderService.sendEmail(
                 user.getEmail(),
-                "Verify your email address",
+                env.getProperty("verify-email-title"),
                 emailTemplateService.buildAccVerificationEmail(user.getEmail(), "http://localhost:8080/api/auth/verify?token=" + token.getToken())
         );
         cloudflarePolicyService.createDefaultPolicy(registeredUser);
 
-        return RegisterResponse.builder().message("We've sent you an email, please verify your account").build();
+        return RegisterResponse.builder().message(env.getProperty("verify-email-sent")).build();
     }
 
     @Override
@@ -106,7 +109,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             confirmationTokenService.save(confirmationToken);
             emailSenderService.sendEmail(
                     user.getEmail(),
-                    "Password Reset Request",
+                    env.getProperty("reset-pw-email-title"),
                     emailTemplateService.buildPasswordResetEmail(user.getEmail(), frontendUri + "/reset-password?token=" + token)
             );
         });

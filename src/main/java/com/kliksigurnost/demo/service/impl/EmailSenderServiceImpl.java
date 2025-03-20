@@ -5,6 +5,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 public class EmailSenderServiceImpl implements EmailSenderService {
 
     private final JavaMailSender mailSender;
+    private final Environment env;
 
     @Override
     @Async
@@ -33,7 +35,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
 
         } catch (MessagingException e) {
             log.error("Failed to send email {}", e.getMessage());
-            throw new IllegalStateException("Failed to send email");
+            throw new IllegalStateException(env.getProperty("email-send-fail"));
         }
     }
 }

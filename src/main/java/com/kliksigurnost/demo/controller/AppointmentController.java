@@ -1,12 +1,13 @@
 package com.kliksigurnost.demo.controller;
 
-import com.kliksigurnost.demo.exception.CloudflareApiException;
 import com.kliksigurnost.demo.exception.NotFoundException;
 import com.kliksigurnost.demo.exception.UnauthorizedAccessException;
 import com.kliksigurnost.demo.model.SupportAppointment;
 import com.kliksigurnost.demo.service.SupportAppointmentService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,11 +18,15 @@ import java.util.List;
 
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/appointments")
 public class AppointmentController {
 
     @Autowired
     private SupportAppointmentService appointmentService;
+
+    @Autowired
+    private final Environment env;
 
     @PostMapping
     public ResponseEntity<?> createAppointment(@RequestBody SupportAppointment appointment) {
@@ -40,10 +45,10 @@ public class AppointmentController {
 
     @DeleteMapping("/{appointmentId}")
     public ResponseEntity<String> deleteAppointment(@PathVariable Integer appointmentId) {
-        log.info("Deleting policy with ID: {}", appointmentId);
+        log.info("Deleting appointment with ID: {}", appointmentId);
         try {
             appointmentService.deleteAppointment(appointmentId);
-            return ResponseEntity.ok("Policy deleted successfully");
+            return ResponseEntity.ok(env.getProperty("appointment-delete-success"));
         } catch (NotFoundException e) {
             log.warn("Appointment not found: {}", appointmentId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
