@@ -22,8 +22,8 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final JwtService jwtService;
     private final UserRepository userRepository;
 
-    @Value("${frontend.uri}")
-    private String frontendUri;
+    @Value("${frontend.url}")
+    private String frontendUrl;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
@@ -44,6 +44,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         response.addCookie(refreshTokenCookie);
 
         // Redirect to the frontend
-        response.sendRedirect(frontendUri + "/oauth-success");
+        response.sendRedirect(frontendUrl + "/oauth-success");
     }
 }

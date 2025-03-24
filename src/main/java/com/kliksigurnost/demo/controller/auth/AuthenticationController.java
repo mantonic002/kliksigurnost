@@ -28,8 +28,8 @@ public class AuthenticationController {
     private final UserDetailsService userDetailsService;
     private final UserService userService;
 
-    @Value("${frontend.uri}")
-    private String frontendUri;
+    @Value("${frontend.url}")
+    private String frontendUrl;
 
     private final Environment env;
 
@@ -72,7 +72,7 @@ public class AuthenticationController {
         try {
             authenticationService.verifyAccount(token);
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUri + "/prijava"))
+                    .location(URI.create(frontendUrl + "/prijava"))
                     .build();
         } catch (InvalidTokenException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());

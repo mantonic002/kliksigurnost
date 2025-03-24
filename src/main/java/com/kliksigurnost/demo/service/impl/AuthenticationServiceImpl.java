@@ -44,8 +44,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final Environment env;
 
-    @Value("${frontend.uri}")
-    private String frontendUri;
+    @Value("${frontend.url}")
+    private String frontendUrl;
+
+
+    @Value("${backend.url}")
+    private String backendUrl;
 
     @Override
     @Transactional
@@ -74,7 +78,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         emailSenderService.sendEmail(
                 user.getEmail(),
                 env.getProperty("verify-email-title"),
-                emailTemplateService.buildAccVerificationEmail(user.getEmail(), "http://localhost:8080/api/auth/verify?token=" + token.getToken())
+                emailTemplateService.buildAccVerificationEmail(user.getEmail(), backendUrl + "/api/auth/verify?token=" + token.getToken())
         );
         cloudflarePolicyService.createDefaultPolicy(registeredUser);
 
@@ -110,7 +114,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             emailSenderService.sendEmail(
                     user.getEmail(),
                     env.getProperty("reset-pw-email-title"),
-                    emailTemplateService.buildPasswordResetEmail(user.getEmail(), frontendUri + "/reset-password?token=" + token)
+                    emailTemplateService.buildPasswordResetEmail(user.getEmail(), frontendUrl + "/reset-password?token=" + token)
             );
         });
     }

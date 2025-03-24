@@ -12,12 +12,12 @@ import java.io.IOException;
 @Component
 public class OAuth2LoginFailureHandler implements AuthenticationFailureHandler {
 
-    @Value("${frontend.uri}")
-    private String frontendUri;
+    @Value("${frontend.url}")
+    private String frontendUrl;
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.sendRedirect(frontendUri + "/login?error=oauth_failed");
+        response.sendRedirect(frontendUrl + "/login?error=oauth_failed");
     }
 }
