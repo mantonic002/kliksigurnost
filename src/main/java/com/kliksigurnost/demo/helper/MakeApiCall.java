@@ -6,8 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kliksigurnost.demo.exception.CloudflareApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -21,7 +19,6 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class MakeApiCall {
-    private static final Logger logger = LoggerFactory.getLogger(MakeApiCall.class);
 
     private static final String CLOUDFLARE_BASE_URL = "https://api.cloudflare.com/client/v4/";
     private static final String AUTHORIZATION_HEADER = "Authorization";
@@ -45,17 +42,17 @@ public class MakeApiCall {
             return response;
         } catch (JsonProcessingException e) {
             log.error("Error parsing Cloudflare response", e);
-            throw new CloudflareApiException("Error parsing Cloudflare response", e);
+            throw new CloudflareApiException(env.getProperty("cloudflare-api-processing-exception"), e);
         } catch (HttpClientErrorException | HttpServerErrorException e) {
             // Handle HTTP errors
             String errorDetails = e.getResponseBodyAsString();
             throw new CloudflareApiException(
-                    "Cloudflare API error: " + e.getStatusCode() + " - " + errorDetails,
+                    env.getProperty("cloudflare-api-exception") + e.getStatusCode() + " - " + errorDetails,
                     e.getStatusCode()
             );
         } catch (Exception e) {
             log.error("Error making REST call to Cloudflare API", e);
-            throw new CloudflareApiException("Error contacting Cloudflare API: " + e.getMessage());
+            throw new CloudflareApiException(env.getProperty("cloudflare-api-exception") + e.getMessage());
         }
     }
 
