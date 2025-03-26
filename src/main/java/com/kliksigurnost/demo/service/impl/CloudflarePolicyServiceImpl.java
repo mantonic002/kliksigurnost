@@ -210,17 +210,46 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
 
 
     private CloudflarePolicy ensureAllowAllPolicyExists(User user) {
-        // Check if the "allow-all" policy already exists in the database
-        List<CloudflarePolicy> userPolicies = policyRepository.findByUser(user);
-        Optional<CloudflarePolicy> allowAllPolicy = userPolicies.stream()
+        // First check if we already have it in our database
+        Optional<CloudflarePolicy> existingDbPolicy = policyRepository.findByUser(user).stream()
                 .filter(CloudflarePolicy::isAllowAll)
                 .findFirst();
 
-        if (allowAllPolicy.isPresent()) {
-            return allowAllPolicy.get();
-        } else {
-            // Create a new "allow-all" policy
-            CloudflarePolicy _allowAllPolicy = CloudflarePolicy.builder()
+        if (existingDbPolicy.isPresent()) {
+            return existingDbPolicy.get();
+        }
+
+        // If not in DB, check Cloudflare API for existing policy
+        String url = makeApiCall.buildUrl(GATEWAY_RULES_ENDPOINT, user.getCloudflareAccount().getAccountId());
+        HttpHeaders headers = makeApiCall.createHeaders(user.getCloudflareAccount().getAuthorizationToken());
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            // Get all policies from Cloudflare
+            ResponseEntity<String> response = makeApiCall.makeApiCall(url, HttpMethod.GET, entity);
+            JsonNode responseBody = makeApiCall.parseResponse(response.getBody());
+
+            // Look for policy with user's email as name
+            for (JsonNode policyNode : responseBody.path("result")) {
+                String policyName = policyNode.path("name").asText();
+                if (policyName.equals(user.getEmail())) {
+                    // Found existing policy - create local record
+                    CloudflarePolicy existingPolicy = CloudflarePolicy.builder()
+                            .id(policyNode.path("id").asText())
+                            .name(policyName)
+                            .action(policyNode.path("action").asText())
+                            .traffic(policyNode.path("traffic").asText())
+                            .cloudflareAccId(user.getCloudflareAccount().getAccountId())
+                            .user(user)
+                            .isAllowAll(true)
+                            .build();
+
+                    return policyRepository.save(existingPolicy);
+                }
+            }
+
+            // If we get here, no existing policy found - create new one
+            CloudflarePolicy newPolicy = CloudflarePolicy.builder()
                     .name(user.getEmail())
                     .action("allow")
                     .traffic("")
@@ -229,27 +258,20 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                     .isAllowAll(true)
                     .build();
 
-            // Save the "allow-all" policy to Cloudflare API
-            String url = makeApiCall.buildUrl(GATEWAY_RULES_ENDPOINT, user.getCloudflareAccount().getAccountId());
+            Map<String, Object> requestBody = buildPolicyRequestBody(newPolicy);
+            HttpEntity<Map<String, Object>> postEntity = new HttpEntity<>(requestBody, headers);
 
-            HttpHeaders headers = makeApiCall.createHeaders(user.getCloudflareAccount().getAuthorizationToken());
-            Map<String, Object> requestBody = buildPolicyRequestBody(_allowAllPolicy);
+            ResponseEntity<String> createResponse = makeApiCall.makeApiCall(url, HttpMethod.POST, postEntity);
+            JsonNode createResponseBody = makeApiCall.parseResponse(createResponse.getBody());
 
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+            String policyId = createResponseBody.path("result").path("id").asText();
+            newPolicy.setId(policyId);
 
-            try {
-                ResponseEntity<String> response = makeApiCall.makeApiCall(url, HttpMethod.POST, entity);
-                JsonNode responseBody = makeApiCall.parseResponse(response.getBody());
+            return policyRepository.save(newPolicy);
 
-                String policyId = responseBody.path("result").path("id").asText();
-                _allowAllPolicy.setId(policyId);
-
-                // Save the "allow-all" policy to the database
-                return policyRepository.save(_allowAllPolicy);
-            } catch (JsonProcessingException e) {
-                log.error("Error parsing Cloudflare API response", e);
-                throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
-            }
+        } catch (JsonProcessingException e) {
+            log.error("Error parsing Cloudflare API response", e);
+            throw new RuntimeException(env.getProperty("cloudflare-api-processing-exception"), e);
         }
     }
 
