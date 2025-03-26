@@ -32,7 +32,7 @@ public class MakeApiCall {
     public <T> ResponseEntity<String> makeApiCall(String url, HttpMethod method, HttpEntity<T> entity) {
         try {
             return restTemplate.exchange(url, method, entity, String.class);
-        } catch (RestClientException e) {
+        } catch (Exception e) {
             logger.error("Error making REST call to Cloudflare API", e);
             throw new CloudflareApiException("Error contacting Cloudflare API", e);
         }

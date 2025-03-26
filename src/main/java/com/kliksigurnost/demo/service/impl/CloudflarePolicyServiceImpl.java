@@ -174,7 +174,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
     }
 
     @Override
-    public void createDefaultPolicy(User user) {
+    public String createDefaultPolicy(User user) {
         log.debug("Creating default policy for user: {}", user);
         String defaultTrafficString = "any(dns.content_category[*] in {2 67 125 133 8 99})"; //adult themes and gambling
         CloudflarePolicy policy = CloudflarePolicy.builder()
@@ -182,7 +182,7 @@ public class CloudflarePolicyServiceImpl implements CloudflarePolicyService {
                 .schedule(null)
                 .traffic(defaultTrafficString)
                 .build();
-        createPolicy(policy, user);
+        return createPolicy(policy, user);
     }
 
     // Helper Methods

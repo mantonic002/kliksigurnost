@@ -3,6 +3,7 @@ package com.kliksigurnost.demo.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kliksigurnost.demo.helper.MakeApiCall;
 import com.kliksigurnost.demo.model.CloudflareAccount;
 import com.kliksigurnost.demo.repository.CloudflareAccountRepository;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
@@ -12,7 +13,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
 
@@ -21,7 +21,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class CloudflareAccountServiceImpl implements CloudflareAccountService {
 
-    private final RestTemplate restTemplate;
+    private final MakeApiCall makeApiCall;
     private final CloudflareAccountRepository repository;
     private final Environment env;
     private static final String BASE_URL = "https://api.cloudflare.com/client/v4/accounts/";
@@ -60,7 +60,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            ResponseEntity<String> response = makeApiCall.makeApiCall(url, HttpMethod.POST, entity);
             JsonNode responseBody = new ObjectMapper().readTree(response.getBody());
             return responseBody.path("result").path("id").asText();
         } catch (RestClientException e) {
@@ -77,7 +77,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
         HttpEntity<String> entity = new HttpEntity<>(createHeaders(account.getAuthorizationToken()));
 
         try {
-            return restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+            return makeApiCall.makeApiCall(url, HttpMethod.GET, entity);
         } catch (RestClientException e) {
             log.error("Error fetching applications from Cloudflare API", e);
             throw new RuntimeException(env.getProperty("cloudflare-api-exception"), e);
@@ -93,7 +93,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            ResponseEntity<String> response = makeApiCall.makeApiCall(url, HttpMethod.POST, entity);
             JsonNode responseBody = new ObjectMapper().readTree(response.getBody());
             return responseBody.path("result").path("id").asText();
         } catch (RestClientException e) {
@@ -122,7 +122,7 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.PUT, entity, String.class);
+            ResponseEntity<String> response = makeApiCall.makeApiCall(url, HttpMethod.PUT, entity);
             return response.getBody();
         } catch (RestClientException e) {
             log.error("Error updating Cloudflare policy", e);
