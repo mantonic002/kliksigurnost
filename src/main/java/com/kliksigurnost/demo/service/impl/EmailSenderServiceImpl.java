@@ -28,7 +28,7 @@ public class EmailSenderServiceImpl implements EmailSenderService {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(body, true);
-            helper.setFrom("kliksigurnost@gmail.com");
+            helper.setFrom("aktivacijaracuna@kliksigurnost.com");
             log.info("Sending email to {}", to);
             mailSender.send(mimeMessage);
             log.info("Email sent to {}", to);
