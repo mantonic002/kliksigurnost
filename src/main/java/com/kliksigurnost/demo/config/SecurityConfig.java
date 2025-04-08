@@ -4,7 +4,6 @@ import com.kliksigurnost.demo.config.oauth2.CustomOAuth2UserService;
 import com.kliksigurnost.demo.config.oauth2.OAuth2LoginFailureHandler;
 import com.kliksigurnost.demo.config.oauth2.OAuth2LoginSuccessHandler;
 import com.kliksigurnost.demo.model.Role;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -47,7 +46,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/oauth2/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/oauth2/**", "/api/contact").permitAll()
                         .requestMatchers("/api/admin/**").hasRole(Role.ADMIN.toString())
                         .requestMatchers("/api/policies/**", "/api/appointments/**", "/api/notifications/**").hasRole(Role.USER.toString())
                         .anyRequest().authenticated()

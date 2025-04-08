@@ -1,6 +1,5 @@
 package com.kliksigurnost.demo.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,6 +19,8 @@ public class SupportAppointment {
     private Integer id;
 
     String userEmail;
+    String phoneNumber;
+
 
     private LocalDateTime appointmentDateTime;
 }
