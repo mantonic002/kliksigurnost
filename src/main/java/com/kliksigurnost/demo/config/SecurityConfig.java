@@ -4,7 +4,6 @@ import com.kliksigurnost.demo.config.oauth2.CustomOAuth2UserService;
 import com.kliksigurnost.demo.config.oauth2.OAuth2LoginFailureHandler;
 import com.kliksigurnost.demo.config.oauth2.OAuth2LoginSuccessHandler;
 import com.kliksigurnost.demo.model.Role;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
