@@ -20,6 +20,8 @@ public class SupportAppointment {
     private Integer id;
 
     String userEmail;
+    String phoneNumber;
+
 
     private LocalDateTime appointmentDateTime;
 }

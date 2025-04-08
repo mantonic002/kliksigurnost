@@ -3,6 +3,7 @@ package com.kliksigurnost.demo.controller;
 import com.kliksigurnost.demo.exception.CloudflareApiException;
 import com.kliksigurnost.demo.exception.NotFoundException;
 import com.kliksigurnost.demo.model.*;
+import com.kliksigurnost.demo.repository.ContactFormRepository;
 import com.kliksigurnost.demo.service.CloudflareAccountService;
 import com.kliksigurnost.demo.service.CloudflarePolicyService;
 import com.kliksigurnost.demo.service.SupportAppointmentService;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @RestController
@@ -26,6 +28,7 @@ public class AdminController {
     private final CloudflarePolicyService cloudflarePolicyService;
     private final UserService userService;
     private final SupportAppointmentService supportAppointmentService;
+    private final ContactFormRepository contactFormRepository;
 
     // Endpoint to get all Cloudflare accounts
     @GetMapping("/accounts")
@@ -119,5 +122,33 @@ public class AdminController {
             log.error("Failed to fetch appointments: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
+    }
+
+
+    @GetMapping("/contact")
+    public ResponseEntity<?> getAllContactForms() {
+        return ResponseEntity.ok(contactFormRepository.findAll());
+    }
+
+    @GetMapping("/contact/pending")
+    public ResponseEntity<?> getPendingContactForms() {
+        return ResponseEntity.ok(contactFormRepository.findContactFormsByStatus(ContactFormStatus.PENDING));
+    }
+
+    @PutMapping("/contact/resolve/{id}")
+    public ResponseEntity<ContactForm> resolveContactForm(@PathVariable Long id) {
+        Optional<ContactForm> optionalContactForm = contactFormRepository.findById(id);
+
+        if (optionalContactForm.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+
+        ContactForm contactForm = optionalContactForm.get();
+
+        contactForm.setStatus(ContactFormStatus.RESOLVED);
+
+        ContactForm resolvedContactForm = contactFormRepository.save(contactForm);
+
+        return ResponseEntity.ok(resolvedContactForm);
     }
 }
