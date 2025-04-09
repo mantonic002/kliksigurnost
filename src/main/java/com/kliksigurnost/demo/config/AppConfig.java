@@ -57,23 +57,23 @@ public class AppConfig {
         return new BCryptPasswordEncoder();
     }
 
-    // bean for creating an initial admin
-    @Bean
-    public CommandLineRunner createInitialAdmin(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        return args -> {
-            // Check if an admin already exists
-            if (userRepository.findByEmail("admin@admin.com").isEmpty()) {
-                User adminUser = User.builder()
-                        .email("admin@admin.com")
-                        .password(passwordEncoder.encode("admin"))
-                        .role(Role.ADMIN)
-                        .isSetUp(false)
-                        .enabled(true)
-                        .authProvider(AuthProvider.LOCAL)
-                        .build();
-                userRepository.save(adminUser);
-                System.out.println("Initial admin user created.");
-            }
-        };
-    }
+//    // bean for creating an initial admin
+//    @Bean
+//    public CommandLineRunner createInitialAdmin(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+//        return args -> {
+//            // Check if an admin already exists
+//            if (userRepository.findByEmail("admin@admin.com").isEmpty()) {
+//                User adminUser = User.builder()
+//                        .email("admin@admin.com")
+//                        .password(passwordEncoder.encode("admin"))
+//                        .role(Role.ADMIN)
+//                        .isSetUp(false)
+//                        .enabled(true)
+//                        .authProvider(AuthProvider.LOCAL)
+//                        .build();
+//                userRepository.save(adminUser);
+//                System.out.println("Initial admin user created.");
+//            }
+//        };
+//    }
 }
