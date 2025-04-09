@@ -34,15 +34,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
-        // Determine the provider (Google or Facebook)
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
 
         String email;
         if (registrationId.equals("google")) {
             email = oAuth2User.getAttribute("email");
-        } else if (registrationId.equals("facebook")) {
-            email = oAuth2User.getAttribute("email");
-            log.debug("Facebook email: {}", email);
         } else {
             throw new OAuth2AuthenticationException("Unsupported OAuth2 provider: " + registrationId);
         }
@@ -67,7 +63,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                     .role(Role.USER)
                     .cloudflareAccount(cloudflareAccount)
-                    .authProvider(registrationId.equals("google") ? AuthProvider.GOOGLE : AuthProvider.FACEBOOK)
+                    .authProvider(AuthProvider.GOOGLE)
                     .isSetUp(false)
                     .enabled(true)
                     .build();
