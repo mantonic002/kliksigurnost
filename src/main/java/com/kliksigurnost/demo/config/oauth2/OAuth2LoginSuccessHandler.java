@@ -34,7 +34,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         String jwtToken = jwtService.generateToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
-        // Store tokens in cookies or headers
         Cookie accessTokenCookie = new Cookie("access_token", jwtToken);
         accessTokenCookie.setPath("/");
         response.addCookie(accessTokenCookie);
@@ -43,7 +42,6 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         refreshTokenCookie.setPath("/");
         response.addCookie(refreshTokenCookie);
 
-        // Redirect to the frontend
         response.sendRedirect(frontendUrl + "/oauth-success");
     }
 }

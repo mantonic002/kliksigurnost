@@ -72,7 +72,7 @@ public class AuthenticationController {
         try {
             authenticationService.verifyAccount(token);
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .location(URI.create(frontendUrl + "/prijava"))
+                    .location(URI.create(frontendUrl + "/prijava?success=true"))
                     .build();
         } catch (InvalidTokenException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
