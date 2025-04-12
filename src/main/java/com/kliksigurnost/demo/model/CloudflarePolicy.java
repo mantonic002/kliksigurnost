@@ -14,6 +14,8 @@ public class CloudflarePolicy {
     String id;
     String name;
     String action;
+
+    @Column(columnDefinition = "TEXT")
     String traffic;
     String cloudflareAccId;
 
