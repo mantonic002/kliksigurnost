@@ -114,10 +114,38 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
     }
 
     private String updatePolicyWithEmail(CloudflareAccount account, String email) {
-        String url = BASE_URL + account.getAccountId() + "/access/apps/" + account.getEnrollmentApplicationId() + "/policies/" + account.getEnrollmentPolicyId();
+        String url = BASE_URL + account.getAccountId() + "/access/apps/" +
+                account.getEnrollmentApplicationId() + "/policies/" +
+                account.getEnrollmentPolicyId();
+
+        // Get current policy to preserve existing emails
+        JsonNode currentPolicy = getCurrentPolicy(account);
+        JsonNode currentIncludes = currentPolicy.path("result").path("include");
 
         HttpHeaders headers = createHeaders(account.getAuthorizationToken());
-        Map<String, Object> requestBody = buildPolicyRequestBody(email);
+
+        // Build new request body with existing emails plus new one
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("name", "Allow");
+        requestBody.put("decision", "allow");
+
+        List<Map<String, Object>> includeList = new ArrayList<>();
+
+        // Add existing email conditions
+        if (currentIncludes.isArray()) {
+            for (JsonNode include : currentIncludes) {
+                if (include.has("email")) {
+                    includeList.add(new HashMap<>(Map.of(
+                            "email", Map.of("email", include.path("email").path("email").asText())
+                    )));
+                }
+            }
+        }
+
+        // Add new email condition
+        includeList.add(Map.of("email", Map.of("email", email)));
+
+        requestBody.put("include", includeList);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
@@ -205,5 +233,21 @@ public class CloudflareAccountServiceImpl implements CloudflareAccountService {
         headers.set("Authorization", authToken);
         headers.set("Content-Type", "application/json");
         return headers;
+    }
+
+    private JsonNode getCurrentPolicy(CloudflareAccount account) {
+        String url = BASE_URL + account.getAccountId() + "/access/apps/" +
+                account.getEnrollmentApplicationId() + "/policies/" +
+                account.getEnrollmentPolicyId();
+
+        HttpEntity<String> entity = new HttpEntity<>(createHeaders(account.getAuthorizationToken()));
+
+        try {
+            ResponseEntity<String> response = makeApiCall.makeApiCall(url, HttpMethod.GET, entity);
+            return new ObjectMapper().readTree(response.getBody());
+        } catch (RestClientException | JsonProcessingException e) {
+            log.error("Error fetching current policy", e);
+            throw new RuntimeException("Failed to fetch current policy", e);
+        }
     }
 }
