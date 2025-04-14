@@ -66,7 +66,7 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
                     if (policy != null) {
                         User user = policy.getUser();
                         String notificationMessage = String.format(
-                                "Blocked content accessed under policy %s: %s",
+                                "Pokušaj pristupa zabranjenom sadržaju (pravilo: %s: %s)",
                                 policy.getName(),
                                 clog.getQueryName()
                         );
@@ -153,7 +153,7 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
                 if (!notificationRepository.existsByDeviceIdAndIsSeen(device.getId(), false)) {
                     Notification notification = Notification.builder()
                             .isSeen(false)
-                            .message("Device " + device.getManufacturer() + "'s last seen date is more than 5 days ago")
+                            .message("Uredjaj " + device.getManufacturer() + " zadnji put vidjen pre više od 5 dana. Proverite 'Cloudflare One' aplikaciju na vašim uredjajima")
                             .user(user)
                             .type(NotificationType.DEVICE)
                             .deviceId(device.getId())
