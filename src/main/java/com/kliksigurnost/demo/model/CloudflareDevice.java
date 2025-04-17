@@ -15,4 +15,5 @@ public class CloudflareDevice {
     private String model;
     private String lastSeenTime;
     private String email;
+    private String serialNumber;
 }
