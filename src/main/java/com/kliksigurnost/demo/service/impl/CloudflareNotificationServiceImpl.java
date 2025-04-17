@@ -153,7 +153,7 @@ public class CloudflareNotificationServiceImpl implements CloudflareNotification
                 if (!notificationRepository.existsByDeviceIdAndIsSeen(device.getId(), false)) {
                     Notification notification = Notification.builder()
                             .isSeen(false)
-                            .message("Uredjaj " + device.getManufacturer() + " zadnji put vidjen pre više od 5 dana. Proverite 'Cloudflare One' aplikaciju na vašim uredjajima")
+                            .message("Uredjaj " + device.getModel() + " zadnji put vidjen pre više od 5 dana. Proverite 'Cloudflare One' aplikaciju na vašim uredjajima")
                             .user(user)
                             .type(NotificationType.DEVICE)
                             .deviceId(device.getId())
